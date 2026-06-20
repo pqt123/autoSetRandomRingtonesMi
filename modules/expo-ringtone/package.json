@@ -1,0 +1,12 @@
+{
+  "name": "expo-ringtone",
+  "version": "1.0.0",
+  "description": "Expo native module for Android ringtone management",
+  "main": "index.ts",
+  "files": [
+    "android",
+    "index.ts"
+  ],
+  "keywords": ["expo", "android", "ringtone", "native-module"],
+  "license": "MIT"
+}
