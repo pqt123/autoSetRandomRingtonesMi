@@ -8,6 +8,7 @@ import {
   Animated,
   StatusBar,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
@@ -24,6 +25,7 @@ import {
   checkWriteSettingsPermission,
   getCurrentRingtone,
   isIgnoringBatteryOptimizations,
+  setSystemRingtone,
 } from '../../modules/expo-ringtone';
 import {
   registerSchedulerTask,
@@ -91,6 +93,70 @@ export default function HomeScreen() {
       await registerSchedulerTask();
     } else {
       await unregisterSchedulerTask();
+    }
+  };
+
+  const handleTestRandomRingtone = async () => {
+    // 1. Kiểm tra quyền WRITE_SETTINGS
+    const hasPerm = await checkWriteSettingsPermission();
+    if (!hasPerm) {
+      Alert.alert(
+        'Yêu cầu quyền',
+        'Ứng dụng cần quyền thay đổi cài đặt hệ thống (WRITE_SETTINGS) để đặt nhạc chuông. Bạn có muốn chuyển sang màn hình thiết lập không?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Thiết lập', onPress: () => router.push('/permissions') },
+        ]
+      );
+      return;
+    }
+
+    // 2. Tìm slot test
+    let targetSlot = activeSlot;
+    let isCurrentlyActive = true;
+    if (!targetSlot) {
+      // Nếu không có slot nào đang chạy, tìm slot bật bất kỳ có bài hát
+      targetSlot = slots.find(s => s.isEnabled && s.playlist.length > 0) || null;
+      isCurrentlyActive = false;
+    }
+
+    if (!targetSlot || targetSlot.playlist.length === 0) {
+      Alert.alert(
+        'Không thể test',
+        'Vui lòng tạo/bật ít nhất một khung giờ có chứa các bài hát trong playlist trước khi thực hiện test.'
+      );
+      return;
+    }
+
+    // 3. Chọn ngẫu nhiên bài hát
+    const songs = targetSlot.playlist;
+    const chosenSong = songs[Math.floor(Math.random() * songs.length)];
+    if (!chosenSong) return;
+
+    // 4. Gọi setSystemRingtone
+    try {
+      const success = await setSystemRingtone(chosenSong.uri);
+      if (success) {
+        // Lấy lại nhạc chuông hệ thống thực tế để đồng bộ giao diện
+        const updated = await getCurrentRingtone();
+        if (updated) {
+          setCurrentRingtone(updated);
+        } else {
+          setCurrentRingtone({ title: chosenSong.title, uri: chosenSong.uri });
+        }
+        
+        Alert.alert(
+          'Thành công',
+          `Đã thay đổi nhạc chuông ngẫu nhiên từ khung giờ "${targetSlot.label}"${isCurrentlyActive ? ' (Đang active)' : ' (Test)'} thành:\n🎵 ${chosenSong.title}`
+        );
+      } else {
+        Alert.alert(
+          'Thất bại',
+          'Không thể ghi đè nhạc chuông. Vui lòng kiểm tra lại quyền truy cập hoặc file nhạc.'
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Lỗi', `Có lỗi xảy ra: ${e?.message || e}`);
     }
   };
 
@@ -180,7 +246,17 @@ export default function HomeScreen() {
 
         {/* ── Current Ringtone ── */}
         <GlassCard style={styles.ringtoneCard}>
-          <SectionHeader title="Nhạc chuông hiện tại" />
+          <SectionHeader
+            title="Nhạc chuông hiện tại"
+            action={
+              <TouchableOpacity
+                onPress={handleTestRandomRingtone}
+                style={styles.testBtn}
+              >
+                <Text style={styles.testBtnText}>🎲 Test Random</Text>
+              </TouchableOpacity>
+            }
+          />
           <View style={styles.ringtoneInfo}>
             <Text style={{ fontSize: 32 }}>🎵</Text>
             <View style={{ flex: 1, marginLeft: Spacing.md }}>
@@ -400,4 +476,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCardAlt,
   },
   devBtnText: { color: Colors.textMuted, fontSize: 13 },
+  testBtn: {
+    borderColor: Colors.accent,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  testBtnText: {
+    ...Typography.bodySmall,
+    color: Colors.accent,
+    fontWeight: '600',
+  },
 });
