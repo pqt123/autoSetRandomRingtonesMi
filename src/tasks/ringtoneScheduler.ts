@@ -71,20 +71,38 @@ TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
       return BackgroundTask.BackgroundTaskResult.Success;
     }
 
-    // 5. Kiểm tra xem slot này đã được set trong khung giờ hiện tại chưa
-    //    (tránh set lại liên tục nếu task chạy nhiều lần)
+    // 5. Kiểm tra thời gian đổi nhạc định kỳ theo cấu hình của activeSlot
+    // autoRotate: false hoặc changeIntervalMinutes === 0 nghĩa là chỉ đổi 1 lần khi bắt đầu slot
+    const autoRotate = activeSlot.autoRotate !== false;
+    const intervalMinutes = autoRotate ? (activeSlot.changeIntervalMinutes ?? 60) : 0;
+
     const lastSetJson = await AsyncStorage.getItem(LAST_SET_KEY);
+    let lastSetUri: string | null = null;
+
     if (lastSetJson) {
       const lastSet = JSON.parse(lastSetJson);
+      lastSetUri = lastSet.uri;
       const minutesSinceLast = (Date.now() - lastSet.timestamp) / 1000 / 60;
-      // Nếu cùng slot và mới set trong vòng 5 phút → skip
-      if (lastSet.slotId === activeSlot.id && minutesSinceLast < 5) {
-        return BackgroundTask.BackgroundTaskResult.Success;
+
+      if (lastSet.slotId === activeSlot.id) {
+        if (intervalMinutes === 0) {
+          // Chỉ đổi 1 lần khi bước vào slot → đã đổi rồi thì skip
+          return BackgroundTask.BackgroundTaskResult.Success;
+        } else if (minutesSinceLast < intervalMinutes) {
+          // Chưa đủ số phút định kỳ (VD: chưa đủ 60 phút) → skip
+          return BackgroundTask.BackgroundTaskResult.Success;
+        }
       }
     }
 
-    // 6. Random pick ringtone từ playlist
-    const picked = pickRandom(activeSlot.playlist);
+    // 6. Random pick ringtone từ playlist (ưu tiên chọn bài khác bài hiện tại nếu playlist > 1)
+    let candidates = activeSlot.playlist;
+    if (candidates.length > 1 && lastSetUri) {
+      const filtered = candidates.filter(c => c.uri !== lastSetUri);
+      if (filtered.length > 0) candidates = filtered;
+    }
+
+    const picked = pickRandom(candidates);
     if (!picked) {
       return BackgroundTask.BackgroundTaskResult.Success;
     }

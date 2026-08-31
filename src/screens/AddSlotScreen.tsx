@@ -15,7 +15,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
-import { GlassCard, PrimaryButton, TimeBadge, SectionHeader } from '../components/ui';
+import { GlassCard, PrimaryButton, TimeBadge, SectionHeader, ToggleSwitch } from '../components/ui';
 import { useStore } from '../store/useStore';
 import { TimeSlot, RingtoneInfo } from '../types';
 
@@ -123,6 +123,24 @@ export default function AddSlotScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
+  const [autoRotate, setAutoRotate] = useState<boolean>(existingSlot?.autoRotate ?? true);
+  const [changeIntervalMinutes, setChangeIntervalMinutes] = useState<number>(existingSlot?.changeIntervalMinutes ?? 60);
+  const [isCustomInterval, setIsCustomInterval] = useState<boolean>(
+    existingSlot?.changeIntervalMinutes !== undefined &&
+    ![0, 30, 60, 120, 180].includes(existingSlot.changeIntervalMinutes)
+  );
+  const [customMinutesText, setCustomMinutesText] = useState<string>(
+    isCustomInterval && existingSlot?.changeIntervalMinutes ? String(existingSlot.changeIntervalMinutes) : '45'
+  );
+
+  const INTERVAL_PRESETS = [
+    { label: '1 tiếng', minutes: 60 },
+    { label: '30 phút', minutes: 30 },
+    { label: '2 tiếng', minutes: 120 },
+    { label: '3 tiếng', minutes: 180 },
+    { label: 'Chỉ 1 lần', minutes: 0 },
+  ];
+
   const handlePickAudio = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -162,6 +180,11 @@ export default function AddSlotScreen() {
       return;
     }
 
+    const parsedCustom = parseInt(customMinutesText, 10);
+    const finalInterval = isCustomInterval
+      ? (isNaN(parsedCustom) || parsedCustom <= 0 ? 60 : parsedCustom)
+      : changeIntervalMinutes;
+
     const slotData = {
       label: label.trim(),
       startHour,
@@ -171,6 +194,8 @@ export default function AddSlotScreen() {
       playlist,
       isEnabled: existingSlot?.isEnabled ?? true,
       color: existingSlot?.color ?? '',
+      autoRotate,
+      changeIntervalMinutes: finalInterval,
     };
 
     if (isEditing && slotId) {
@@ -262,9 +287,80 @@ export default function AddSlotScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={[Typography.caption, { marginTop: Spacing.sm }]}>
-            💡 Có thể đặt qua midnight (VD: 22:00 → 06:00)
-          </Text>
+        </GlassCard>
+
+        {/* ── Ringtone Rotation Frequency ── */}
+        <GlassCard style={styles.section}>
+          <View style={styles.rotationRow}>
+            <View style={{ flex: 1, paddingRight: Spacing.sm }}>
+              <Text style={Typography.h3}>Đổi nhạc định kỳ</Text>
+              <Text style={[Typography.bodySmall, { marginTop: 2 }]}>
+                {autoRotate
+                  ? (isCustomInterval
+                      ? `Đổi ngẫu nhiên mỗi ${customMinutesText || '60'} phút`
+                      : changeIntervalMinutes === 0
+                      ? 'Chỉ đổi 1 lần khi bắt đầu khung giờ'
+                      : `Đổi ngẫu nhiên mỗi ${changeIntervalMinutes === 60 ? '1 tiếng' : (changeIntervalMinutes >= 60 ? (changeIntervalMinutes / 60) + ' tiếng' : changeIntervalMinutes + ' phút')}`)
+                  : 'Tắt (chỉ đổi 1 lần khi bắt đầu)'}
+              </Text>
+            </View>
+            <ToggleSwitch
+              value={autoRotate}
+              onToggle={() => setAutoRotate(!autoRotate)}
+            />
+          </View>
+
+          {autoRotate && (
+            <View style={styles.intervalContainer}>
+              <Text style={[Typography.label, { marginBottom: Spacing.xs, marginTop: Spacing.md }]}>
+                TẦN SUẤT ĐỔI NHẠC
+              </Text>
+              <View style={styles.presetContainer}>
+                {INTERVAL_PRESETS.map(item => {
+                  const isSelected = !isCustomInterval && changeIntervalMinutes === item.minutes;
+                  return (
+                    <TouchableOpacity
+                      key={item.minutes}
+                      onPress={() => {
+                        setIsCustomInterval(false);
+                        setChangeIntervalMinutes(item.minutes);
+                      }}
+                      style={[styles.presetChip, isSelected && styles.presetChipSelected]}
+                    >
+                      <Text style={[styles.presetChipText, isSelected && styles.presetChipTextSelected]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                <TouchableOpacity
+                  onPress={() => setIsCustomInterval(true)}
+                  style={[styles.presetChip, isCustomInterval && styles.presetChipSelected]}
+                >
+                  <Text style={[styles.presetChipText, isCustomInterval && styles.presetChipTextSelected]}>
+                    ✏️ Tùy chỉnh
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {isCustomInterval && (
+                <View style={styles.customInputRow}>
+                  <Text style={Typography.body}>Đổi ngẫu nhiên mỗi:</Text>
+                  <TextInput
+                    style={styles.customInput}
+                    value={customMinutesText}
+                    onChangeText={setCustomMinutesText}
+                    keyboardType="number-pad"
+                    maxLength={3}
+                    placeholder="60"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                  <Text style={Typography.body}>phút</Text>
+                </View>
+              )}
+            </View>
+          )}
         </GlassCard>
 
         {/* ── Playlist ── */}
@@ -405,6 +501,64 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   removeBtn: { padding: Spacing.xs },
+  // Rotation section styles
+  rotationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  intervalContainer: {
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  presetContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  presetChip: {
+    backgroundColor: Colors.bgCardAlt,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  presetChipSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  presetChipText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  presetChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  customInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  customInput: {
+    backgroundColor: Colors.bgCardAlt,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    width: 70,
+    textAlign: 'center',
+  },
   // Modal
   modalOverlay: {
     flex: 1,

@@ -362,9 +362,25 @@ function SlotCard({
           </View>
 
           <View style={styles.slotBottom}>
-            <Text style={Typography.bodySmall}>
-              🎵 {slot.playlist.length} bài · random mỗi lần
-            </Text>
+            {(() => {
+              const autoRotate = slot.autoRotate !== false;
+              const interval = autoRotate ? (slot.changeIntervalMinutes ?? 60) : 0;
+              let intervalText = '🔄 Đổi mỗi 1 tiếng';
+              if (!autoRotate || interval === 0) {
+                intervalText = '⏱ Chỉ 1 lần/khung giờ';
+              } else if (interval === 60) {
+                intervalText = '🔄 Đổi mỗi 1 tiếng';
+              } else if (interval >= 60 && interval % 60 === 0) {
+                intervalText = `🔄 Đổi mỗi ${interval / 60} tiếng`;
+              } else {
+                intervalText = `🔄 Đổi mỗi ${interval} phút`;
+              }
+              return (
+                <Text style={Typography.bodySmall}>
+                  🎵 {slot.playlist.length} bài · {intervalText}
+                </Text>
+              );
+            })()}
           </View>
         </View>
       </View>
