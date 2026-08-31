@@ -1,7 +1,7 @@
 {
   "name": "autoringtone-mi",
   "main": "expo-router/entry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -13,8 +13,8 @@
     "b": "cd android && .\\gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a",
     "build:android": "cd android && .\\gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a",
     "build:all-arch": "cd android && .\\gradlew assembleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a",
-    "updateVersion": "react-native-version --never-amend",
-    "upd": "react-native-version --never-amend",
+    "updateVersion": "node ./scripts/update-version.js",
+    "upd": "node ./scripts/update-version.js",
     "lint": "expo lint",
     "android:clean": "cd android && ./gradlew clean && cd .. && npm cache clean --force",
     "s": "cd android && ./gradlew --stop",
