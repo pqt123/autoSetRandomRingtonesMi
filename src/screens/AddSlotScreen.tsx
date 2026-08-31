@@ -128,7 +128,7 @@ export default function AddSlotScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
         multiple: true,
-        copyToCacheDirectory: false,
+        copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;

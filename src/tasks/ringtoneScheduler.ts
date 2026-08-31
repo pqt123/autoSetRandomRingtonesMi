@@ -44,14 +44,14 @@ TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
     const enabledJson = await AsyncStorage.getItem(SCHEDULER_KEY);
     const schedulerEnabled: boolean = enabledJson ? JSON.parse(enabledJson) : false;
     if (!schedulerEnabled) {
-      return BackgroundTask.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
     // 2. Kiểm tra quyền
     const hasPermission = await checkWriteSettingsPermission();
     if (!hasPermission) {
       console.warn('[RingtoneScheduler] WRITE_SETTINGS permission not granted');
-      return BackgroundTask.BackgroundFetchResult.Failed;
+      return BackgroundTask.BackgroundTaskResult.Failed;
     }
 
     // 3. Lấy danh sách slots
@@ -60,7 +60,7 @@ TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
     const enabledSlots = slots.filter(s => s.isEnabled && s.playlist.length > 0);
 
     if (enabledSlots.length === 0) {
-      return BackgroundTask.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
     // 4. Tìm slot đang active
@@ -68,7 +68,7 @@ TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
     const activeSlot = enabledSlots.find(slot => isTimeInSlot(slot, now));
 
     if (!activeSlot) {
-      return BackgroundTask.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
     // 5. Kiểm tra xem slot này đã được set trong khung giờ hiện tại chưa
@@ -79,14 +79,14 @@ TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
       const minutesSinceLast = (Date.now() - lastSet.timestamp) / 1000 / 60;
       // Nếu cùng slot và mới set trong vòng 5 phút → skip
       if (lastSet.slotId === activeSlot.id && minutesSinceLast < 5) {
-        return BackgroundTask.BackgroundFetchResult.NoData;
+        return BackgroundTask.BackgroundTaskResult.Success;
       }
     }
 
     // 6. Random pick ringtone từ playlist
     const picked = pickRandom(activeSlot.playlist);
     if (!picked) {
-      return BackgroundTask.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
     // 7. Set ringtone
@@ -100,13 +100,13 @@ TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
         timestamp: Date.now(),
       }));
       console.log(`[RingtoneScheduler] ✅ Set ringtone: ${picked.title} for slot "${activeSlot.label}"`);
-      return BackgroundTask.BackgroundFetchResult.NewData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     } else {
-      return BackgroundTask.BackgroundFetchResult.Failed;
+      return BackgroundTask.BackgroundTaskResult.Failed;
     }
   } catch (error) {
     console.error('[RingtoneScheduler] Error:', error);
-    return BackgroundTask.BackgroundFetchResult.Failed;
+    return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });
 

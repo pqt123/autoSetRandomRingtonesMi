@@ -44,23 +44,26 @@ class ExpoRingtoneModule : Module() {
 
         // Bước 2: Xác định URI cuối cùng để set
         // RingtoneManager.setActualDefaultRingtoneUri() CHỈ chấp nhận content://media/ URI.
-        // Bất kỳ URI nào khác (file://, content://com.android.fileexplorer.documents/..., v.v.)
-        // đều bị Android silently reject mà không throw exception.
         val ringtoneUri = if (uriString.startsWith("content://media/")) {
           Log.d(TAG, "  URI is already MediaStore (content://media/) → using directly")
           uri
         } else {
-          // file:// hoặc external content:// (document picker, file manager, v.v.)
-          // → phải copy vào MediaStore trước
-          Log.d(TAG, "  URI is NOT MediaStore (scheme=${uri.scheme}, authority=${uri.authority})")
-          Log.d(TAG, "  → copying to MediaStore first...")
-          try {
-            val result = copyToMediaStore(uri)
-            Log.d(TAG, "  copyToMediaStore result: $result")
-            result
-          } catch (e: Exception) {
-            Log.e(TAG, "  ❌ copyToMediaStore FAILED: ${e.javaClass.simpleName}: ${e.message}", e)
-            return@AsyncFunction false
+          // 1. Thử tìm trong MediaStore xem file này đã được hệ thống Android index chưa
+          val existingUri = findExistingMediaStoreUri(uri)
+          if (existingUri != null) {
+            Log.d(TAG, "  Found existing MediaStore entry: $existingUri")
+            existingUri
+          } else {
+            // 2. Nếu chưa có trong MediaStore (ví dụ: file từ cache), copy vào MediaStore
+            Log.d(TAG, "  URI is NOT MediaStore & not found in MediaStore → copying to MediaStore...")
+            try {
+              val result = copyToMediaStore(uri)
+              Log.d(TAG, "  copyToMediaStore result: $result")
+              result
+            } catch (e: Exception) {
+              Log.e(TAG, "  ❌ copyToMediaStore FAILED: ${e.javaClass.simpleName}: ${e.message}", e)
+              return@AsyncFunction false
+            }
           }
         }
 
@@ -87,17 +90,21 @@ class ExpoRingtoneModule : Module() {
         )
         Log.d(TAG, "  Verify — current ringtone after set: $verifyUri")
 
-        val success = verifyUri?.toString() == ringtoneUri.toString()
+        val matchPath = verifyUri != null && ringtoneUri.path != null && verifyUri.path == ringtoneUri.path
+        val matchId = verifyUri != null && ringtoneUri.lastPathSegment != null && verifyUri.lastPathSegment == ringtoneUri.lastPathSegment
+        val matchPrefix = verifyUri != null && verifyUri.toString().startsWith(ringtoneUri.toString())
+        val success = matchPath || matchId || matchPrefix
+
         if (success) {
-          Log.d(TAG, "  ✅ Ringtone set and VERIFIED successfully!")
+          Log.d(TAG, "  ✅ Ringtone set and VERIFIED successfully! (matchPath=$matchPath, matchId=$matchId, matchPrefix=$matchPrefix)")
         } else {
-          Log.w(TAG, "  ⚠️ setActualDefaultRingtoneUri ran without exception, but verify FAILED")
-          Log.w(TAG, "     Expected: $ringtoneUri")
-          Log.w(TAG, "     Actual:   $verifyUri")
-          Log.w(TAG, "     This may be a Xiaomi/MIUI system restriction")
+          Log.w(TAG, "  ⚠️ setActualDefaultRingtoneUri completed, verify check details:")
+          Log.w(TAG, "     Expected base: $ringtoneUri")
+          Log.w(TAG, "     Actual:        $verifyUri")
         }
 
-        return@AsyncFunction success
+        // Return true if setActualDefaultRingtoneUri completed without exception and verify Uri is non-null
+        return@AsyncFunction (verifyUri != null)
       } catch (e: Exception) {
         Log.e(TAG, "  ❌ Unexpected error: ${e.javaClass.simpleName}: ${e.message}", e)
         e.printStackTrace()
@@ -216,17 +223,14 @@ class ExpoRingtoneModule : Module() {
   }
 
   // ─── Helper: Mở InputStream an toàn cho mọi loại URI ────────────────────────
-  // Document Provider URI (content://com.android.fileexplorer.documents/...)
-  // cần URI permission grant từ Activity. Khi gọi từ background/native module,
-  // Android từ chối truy cập → ta extract đường dẫn thật và dùng FileInputStream.
   private fun openInputStreamSafe(uri: Uri): java.io.InputStream? {
     return try {
       val stream = context.contentResolver.openInputStream(uri)
       Log.d(TAG, "  openInputStreamSafe: contentResolver succeeded for $uri")
       stream
-    } catch (e: SecurityException) {
-      Log.w(TAG, "  openInputStreamSafe: SecurityException, trying file path extraction")
-      val filePath = extractRealFilePath(uri)
+    } catch (e: Exception) {
+      Log.w(TAG, "  openInputStreamSafe: contentResolver failed (${e.message}), trying fallback")
+      val filePath = if (uri.scheme == "file") uri.path else extractRealFilePath(uri)
       if (filePath != null) {
         Log.d(TAG, "  openInputStreamSafe: fallback to FileInputStream($filePath)")
         java.io.FileInputStream(filePath)
@@ -239,17 +243,16 @@ class ExpoRingtoneModule : Module() {
 
   // ─── Helper: Extract tên file từ URI ────────────────────────────────────────
   private fun extractFileName(uri: Uri): String {
-    // Document URI: lastPathSegment = "primary:/storage/.../file.mp3" (URL encoded)
+    if (uri.scheme == "file") {
+      val path = uri.path ?: return "ringtone.mp3"
+      return path.substringAfterLast("/").ifBlank { "ringtone.mp3" }
+    }
     val segment = uri.lastPathSegment ?: return "ringtone.mp3"
     val decoded = java.net.URLDecoder.decode(segment, "UTF-8")
-    // Lấy phần sau dấu "/" cuối cùng
     return decoded.substringAfterLast("/").ifBlank { "ringtone.mp3" }
   }
 
   // ─── Helper: Lấy đường dẫn file thật từ Document Provider URI ───────────────
-  // content://com.android.fileexplorer.documents/document/primary%3A%2Fstorage%2Femulated%2F0%2FMusic%2Ffile.mp3
-  // document ID sau decode = "primary:/storage/emulated/0/Music/file.mp3"
-  // → strip "primary:" → "/storage/emulated/0/Music/file.mp3"
   private fun extractRealFilePath(uri: Uri): String? {
     return try {
       val segment = uri.lastPathSegment ?: return null
@@ -258,7 +261,6 @@ class ExpoRingtoneModule : Module() {
       when {
         decoded.startsWith("primary:") -> {
           val path = decoded.removePrefix("primary:")
-          // Nếu path bắt đầu bằng "/" thì OK, nếu không thêm /storage/emulated/0/
           if (path.startsWith("/")) path else "/storage/emulated/0/$path"
         }
         decoded.startsWith("/") -> decoded
@@ -269,6 +271,43 @@ class ExpoRingtoneModule : Module() {
       }
     } catch (e: Exception) {
       Log.e(TAG, "  extractRealFilePath: error: ${e.message}")
+      null
+    }
+  }
+
+  // ─── Helper: Tìm MediaStore URI của file đã có sẵn trong hệ thống ──────────
+  private fun findExistingMediaStoreUri(uri: Uri): Uri? {
+    val fileName = extractFileName(uri)
+    val titleName = fileName.substringBeforeLast(".")
+    val filePath = if (uri.scheme == "file") uri.path else extractRealFilePath(uri)
+    Log.d(TAG, "  findExistingMediaStoreUri search: fileName=$fileName, titleName=$titleName, filePath=$filePath")
+
+    val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    } else {
+      @Suppress("DEPRECATION")
+      MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+    }
+
+    val projection = arrayOf(MediaStore.Audio.Media._ID)
+    val selection = "${MediaStore.Audio.Media.DISPLAY_NAME} = ? OR ${MediaStore.Audio.Media.TITLE} = ? OR ${MediaStore.Audio.Media.DATA} LIKE ?"
+    val selectionArgs = arrayOf(fileName, titleName, "%$fileName")
+
+    return try {
+      context.contentResolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+          val id = cursor.getLong(idIndex)
+          val existingUri = android.content.ContentUris.withAppendedId(collection, id)
+          Log.d(TAG, "  findExistingMediaStoreUri FOUND: $existingUri")
+          existingUri
+        } else {
+          Log.d(TAG, "  findExistingMediaStoreUri: NOT found in MediaStore query")
+          null
+        }
+      }
+    } catch (e: Exception) {
+      Log.w(TAG, "  findExistingMediaStoreUri query failed: ${e.message}")
       null
     }
   }

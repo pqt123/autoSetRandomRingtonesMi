@@ -135,10 +135,14 @@ export default function HomeScreen() {
 
     // 4. Gọi setSystemRingtone
     try {
+      console.log('[HomeScreen Test] Chosen song:', chosenSong.title, 'URI:', chosenSong.uri);
       const success = await setSystemRingtone(chosenSong.uri);
+      console.log('[HomeScreen Test] setSystemRingtone result:', success);
+
       if (success) {
         // Lấy lại nhạc chuông hệ thống thực tế để đồng bộ giao diện
         const updated = await getCurrentRingtone();
+        console.log('[HomeScreen Test] Current ringtone after update:', updated);
         if (updated) {
           setCurrentRingtone(updated);
         } else {
@@ -150,12 +154,14 @@ export default function HomeScreen() {
           `Đã thay đổi nhạc chuông ngẫu nhiên từ khung giờ "${targetSlot.label}"${isCurrentlyActive ? ' (Đang active)' : ' (Test)'} thành:\n🎵 ${chosenSong.title}`
         );
       } else {
+        console.warn('[HomeScreen Test] setSystemRingtone returned false');
         Alert.alert(
           'Thất bại',
           'Không thể ghi đè nhạc chuông. Vui lòng kiểm tra lại quyền truy cập hoặc file nhạc.'
         );
       }
     } catch (e: any) {
+      console.error('[HomeScreen Test] Error setting ringtone:', e);
       Alert.alert('Lỗi', `Có lỗi xảy ra: ${e?.message || e}`);
     }
   };
