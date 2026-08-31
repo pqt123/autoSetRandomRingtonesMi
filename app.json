@@ -4,7 +4,7 @@
     "slug": "auto-ringtone-mi",
     "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/pqt123 192px.png",
     "scheme": "autoringtone",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0F0F1A",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/pqt123 192px.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
