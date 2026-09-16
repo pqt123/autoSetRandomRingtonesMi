@@ -16,6 +16,8 @@ export interface TimeSlot {
   isEnabled: boolean;
   color: string;        // màu hiển thị trên timeline
   createdAt: number;    // timestamp
+  autoRotate?: boolean; // tự động đổi nhạc định kỳ trong khung giờ (default: true)
+  changeIntervalMinutes?: number; // số phút giữa các lần đổi nhạc (60 = 1 tiếng, 30 = 30p, 0 = chỉ 1 lần khi bắt đầu slot)
 }
 
 export type SchedulerStatus = 'active' | 'inactive' | 'permission_required';

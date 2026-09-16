@@ -135,10 +135,14 @@ export default function HomeScreen() {
 
     // 4. Gọi setSystemRingtone
     try {
+      console.log('[HomeScreen Test] Chosen song:', chosenSong.title, 'URI:', chosenSong.uri);
       const success = await setSystemRingtone(chosenSong.uri);
+      console.log('[HomeScreen Test] setSystemRingtone result:', success);
+
       if (success) {
         // Lấy lại nhạc chuông hệ thống thực tế để đồng bộ giao diện
         const updated = await getCurrentRingtone();
+        console.log('[HomeScreen Test] Current ringtone after update:', updated);
         if (updated) {
           setCurrentRingtone(updated);
         } else {
@@ -150,12 +154,14 @@ export default function HomeScreen() {
           `Đã thay đổi nhạc chuông ngẫu nhiên từ khung giờ "${targetSlot.label}"${isCurrentlyActive ? ' (Đang active)' : ' (Test)'} thành:\n🎵 ${chosenSong.title}`
         );
       } else {
+        console.warn('[HomeScreen Test] setSystemRingtone returned false');
         Alert.alert(
           'Thất bại',
           'Không thể ghi đè nhạc chuông. Vui lòng kiểm tra lại quyền truy cập hoặc file nhạc.'
         );
       }
     } catch (e: any) {
+      console.error('[HomeScreen Test] Error setting ringtone:', e);
       Alert.alert('Lỗi', `Có lỗi xảy ra: ${e?.message || e}`);
     }
   };
@@ -356,9 +362,25 @@ function SlotCard({
           </View>
 
           <View style={styles.slotBottom}>
-            <Text style={Typography.bodySmall}>
-              🎵 {slot.playlist.length} bài · random mỗi lần
-            </Text>
+            {(() => {
+              const autoRotate = slot.autoRotate !== false;
+              const interval = autoRotate ? (slot.changeIntervalMinutes ?? 60) : 0;
+              let intervalText = '🔄 Đổi mỗi 1 tiếng';
+              if (!autoRotate || interval === 0) {
+                intervalText = '⏱ Chỉ 1 lần/khung giờ';
+              } else if (interval === 60) {
+                intervalText = '🔄 Đổi mỗi 1 tiếng';
+              } else if (interval >= 60 && interval % 60 === 0) {
+                intervalText = `🔄 Đổi mỗi ${interval / 60} tiếng`;
+              } else {
+                intervalText = `🔄 Đổi mỗi ${interval} phút`;
+              }
+              return (
+                <Text style={Typography.bodySmall}>
+                  🎵 {slot.playlist.length} bài · {intervalText}
+                </Text>
+              );
+            })()}
           </View>
         </View>
       </View>
