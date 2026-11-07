@@ -97,8 +97,8 @@ android {
         applicationId 'com.autoringtone.mi'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.0.4"
+        versionCode 7
+        versionName "1.0.6"
     }
     signingConfigs {
         debug {
@@ -182,4 +182,15 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+// Workaround for React Native New Architecture CMake clean issue:
+// Subproject `:clean` tasks delete `build/generated/source/codegen/jni` before `:app:externalNativeBuildClean*` runs,
+// causing `ninja clean` to re-trigger CMake configuration and fail on missing codegen directories.
+tasks.matching { it.name.startsWith("externalNativeBuildClean") }.configureEach {
+    enabled = false
+}
+
+tasks.named("clean") {
+    delete("D:/cxx", ".cxx")
 }

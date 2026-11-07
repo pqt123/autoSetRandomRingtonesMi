@@ -2,21 +2,19 @@
   "expo": {
     "name": "AutoRingtone",
     "slug": "auto-ringtone-mi",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "orientation": "portrait",
-    "icon": "./assets/images/pqt123 192px.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "autoringtone",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "5"
+      "buildNumber": "7"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0F0F1A",
-        "foregroundImage": "./assets/images/pqt123 192px.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "package": "com.autoringtone.mi",
       "predictiveBackGestureEnabled": false,
@@ -28,7 +26,7 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.FOREGROUND_SERVICE"
       ],
-      "versionCode": 5
+      "versionCode": 7
     },
     "web": {
       "output": "static",

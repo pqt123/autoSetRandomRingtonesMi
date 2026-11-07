@@ -9,6 +9,7 @@ import {
   StatusBar,
   RefreshControl,
   Alert,
+  AppState,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
@@ -28,8 +29,7 @@ import {
   setSystemRingtone,
 } from '../../modules/expo-ringtone';
 import {
-  registerSchedulerTask,
-  unregisterSchedulerTask,
+  isTimeInSlot,
   triggerTaskForTesting,
 } from '../tasks/ringtoneScheduler';
 import { TimeSlot } from '../types';
@@ -40,14 +40,7 @@ function formatTime(h: number, m: number): string {
 
 function getActiveSlot(slots: TimeSlot[]): TimeSlot | null {
   const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  return slots.find(slot => {
-    if (!slot.isEnabled) return false;
-    const start = slot.startHour * 60 + slot.startMinute;
-    const end = slot.endHour * 60 + slot.endMinute;
-    if (start <= end) return currentMinutes >= start && currentMinutes < end;
-    return currentMinutes >= start || currentMinutes < end;
-  }) ?? null;
+  return slots.find(slot => slot.isEnabled && isTimeInSlot(slot, now)) ?? null;
 }
 
 export default function HomeScreen() {
@@ -68,13 +61,25 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
     checkStatus();
+
+    const sub = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        checkStatus();
+      }
+    });
+    return () => sub.remove();
   }, []);
+
+  // Cập nhật lại nhạc chuông hiển thị mỗi khi load/đổi lịch hoặc bật/tắt slot
+  useEffect(() => {
+    checkStatus();
+  }, [schedulerEnabled, slots.length]);
 
   const checkStatus = async () => {
     const [perm, battery, ringtone] = await Promise.all([
-      checkWriteSettingsPermission(),
-      isIgnoringBatteryOptimizations(),
-      getCurrentRingtone(),
+      checkWriteSettingsPermission().catch(() => false),
+      isIgnoringBatteryOptimizations().catch(() => false),
+      getCurrentRingtone().catch(() => null),
     ]);
     setHasPermission(perm);
     setHasBatteryExemption(battery);
@@ -89,11 +94,7 @@ export default function HomeScreen() {
 
   const handleToggleScheduler = async () => {
     await toggleScheduler();
-    if (!schedulerEnabled) {
-      await registerSchedulerTask();
-    } else {
-      await unregisterSchedulerTask();
-    }
+    await checkStatus();
   };
 
   const handleTestRandomRingtone = async () => {
@@ -136,7 +137,7 @@ export default function HomeScreen() {
     // 4. Gọi setSystemRingtone
     try {
       console.log('[HomeScreen Test] Chosen song:', chosenSong.title, 'URI:', chosenSong.uri);
-      const success = await setSystemRingtone(chosenSong.uri);
+      const success = await setSystemRingtone(chosenSong.uri, chosenSong.title);
       console.log('[HomeScreen Test] setSystemRingtone result:', success);
 
       if (success) {

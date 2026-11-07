@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TimeSlot, RingtoneInfo, SchedulerStatus } from '../types';
+import { syncSchedulerWithNative } from '../tasks/ringtoneScheduler';
 
 const STORAGE_KEY = '@autoringtone_slots';
 const SCHEDULER_KEY = '@autoringtone_scheduler_enabled';
@@ -56,13 +57,14 @@ export const useStore = create<StoreState>((set, get) => ({
       const slots: TimeSlot[] = slotsJson ? JSON.parse(slotsJson) : [];
       const schedulerEnabled: boolean = enabledJson ? JSON.parse(enabledJson) : false;
       set({ slots, schedulerEnabled });
+      await syncSchedulerWithNative(slots, schedulerEnabled, true);
     } catch (e) {
       console.error('loadFromStorage error:', e);
     }
   },
 
   addSlot: async (slotData) => {
-    const { slots } = get();
+    const { slots, schedulerEnabled } = get();
     const existingColors = slots.map(s => s.color);
     const newSlot: TimeSlot = {
       ...slotData,
@@ -73,36 +75,41 @@ export const useStore = create<StoreState>((set, get) => ({
     const updated = [...slots, newSlot];
     set({ slots: updated });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await syncSchedulerWithNative(updated, schedulerEnabled, true);
   },
 
   updateSlot: async (id, updates) => {
-    const { slots } = get();
+    const { slots, schedulerEnabled } = get();
     const updated = slots.map(s => s.id === id ? { ...s, ...updates } : s);
     set({ slots: updated });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await syncSchedulerWithNative(updated, schedulerEnabled, true);
   },
 
   deleteSlot: async (id) => {
-    const { slots } = get();
+    const { slots, schedulerEnabled } = get();
     const updated = slots.filter(s => s.id !== id);
     set({ slots: updated });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await syncSchedulerWithNative(updated, schedulerEnabled, false);
   },
 
   toggleSlot: async (id) => {
-    const { slots } = get();
+    const { slots, schedulerEnabled } = get();
     const updated = slots.map(s =>
       s.id === id ? { ...s, isEnabled: !s.isEnabled } : s
     );
     set({ slots: updated });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    await syncSchedulerWithNative(updated, schedulerEnabled, true);
   },
 
   toggleScheduler: async () => {
-    const { schedulerEnabled } = get();
+    const { schedulerEnabled, slots } = get();
     const next = !schedulerEnabled;
     set({ schedulerEnabled: next });
     await AsyncStorage.setItem(SCHEDULER_KEY, JSON.stringify(next));
+    await syncSchedulerWithNative(slots, next, next);
   },
 
   setSchedulerStatus: (status) => set({ schedulerStatus: status }),

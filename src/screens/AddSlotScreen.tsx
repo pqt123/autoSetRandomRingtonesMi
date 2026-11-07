@@ -18,6 +18,7 @@ import { Colors, Spacing, BorderRadius, Typography } from '../theme';
 import { GlassCard, PrimaryButton, TimeBadge, SectionHeader, ToggleSwitch } from '../components/ui';
 import { useStore } from '../store/useStore';
 import { TimeSlot, RingtoneInfo } from '../types';
+import { persistAudioFile } from '../../modules/expo-ringtone';
 
 // ─── Time Picker Modal ────────────────────────────────────────────────────────
 function TimePickerModal({
@@ -151,13 +152,18 @@ export default function AddSlotScreen() {
 
       if (result.canceled) return;
 
-      const newTracks: RingtoneInfo[] = result.assets.map(asset => ({
-        title: asset.name.replace(/\.[^.]+$/, ''), // bỏ extension
-        uri: asset.uri,
-        duration: asset.size,
-      }));
+      const newTracks: RingtoneInfo[] = await Promise.all(
+        result.assets.map(async asset => {
+          const persistedUri = await persistAudioFile(asset.uri, asset.name);
+          return {
+            title: asset.name.replace(/\.[^.]+$/, ''), // bỏ extension
+            uri: persistedUri,
+            duration: asset.size,
+          };
+        })
+      );
 
-      // Tránh trùng lặp theo URI
+      // Tránh trùng lặp theo URI hoặc tên bài
       const existingUris = new Set(playlist.map(p => p.uri));
       const unique = newTracks.filter(t => !existingUris.has(t.uri));
       setPlaylist(prev => [...prev, ...unique]);

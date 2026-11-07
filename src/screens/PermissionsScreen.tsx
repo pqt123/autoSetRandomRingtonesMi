@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   StatusBar,
   Linking,
+  AppState,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
@@ -16,6 +19,12 @@ import {
   openWriteSettingsScreen,
   isIgnoringBatteryOptimizations,
   openBatteryOptimizationSettings,
+  canScheduleExactAlarms,
+  openExactAlarmSettings,
+  getDeviceSystemInfo,
+  openMiuiAutostartSettings,
+  openMiuiBatterySaverSettings,
+  DeviceSystemInfo,
 } from '../../modules/expo-ringtone';
 
 interface PermissionItem {
@@ -26,24 +35,66 @@ interface PermissionItem {
   icon: string;
   required: boolean;
   granted: boolean | null;
-  onRequest: () => void;
+  onRequest: () => void | Promise<void>;
   onCheck: () => Promise<boolean>;
+}
+
+async function checkAudioReadPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const sdk = Number(Platform.Version);
+  const perm =
+    sdk >= 33
+      ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO
+      : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+  if (!perm) return true;
+  return PermissionsAndroid.check(perm);
+}
+
+async function requestAudioReadPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const sdk = Number(Platform.Version);
+  const perm =
+    sdk >= 33
+      ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO
+      : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+  if (!perm) return true;
+  const status = await PermissionsAndroid.request(perm);
+  if (status === PermissionsAndroid.RESULTS.GRANTED) return true;
+  if (status === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+    Linking.openSettings();
+  }
+  return false;
 }
 
 export default function PermissionsScreen() {
   const [writeSettings, setWriteSettings] = useState<boolean | null>(null);
+  const [audioRead, setAudioRead] = useState<boolean | null>(null);
+  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null);
   const [batteryExempt, setBatteryExempt] = useState<boolean | null>(null);
+  const [deviceInfo, setDeviceInfo] = useState<DeviceSystemInfo | null>(null);
 
   useEffect(() => {
     checkAll();
+    getDeviceSystemInfo().then(setDeviceInfo).catch(() => {});
+
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        checkAll();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const checkAll = async () => {
-    const [ws, be] = await Promise.all([
-      checkWriteSettingsPermission(),
-      isIgnoringBatteryOptimizations(),
+    const [ws, ar, ea, be] = await Promise.all([
+      checkWriteSettingsPermission().catch(() => false),
+      checkAudioReadPermission().catch(() => false),
+      canScheduleExactAlarms().catch(() => true),
+      isIgnoringBatteryOptimizations().catch(() => false),
     ]);
     setWriteSettings(ws);
+    setAudioRead(ar);
+    setExactAlarm(ea);
     setBatteryExempt(be);
   };
 
@@ -51,29 +102,62 @@ export default function PermissionsScreen() {
     {
       id: 'write_settings',
       title: 'Sửa cài đặt hệ thống',
-      description: 'Cần thiết để thay đổi nhạc chuông',
-      detail: 'Trên Android, thay đổi ringtone yêu cầu quyền đặc biệt "Modify system settings". Bạn cần bật thủ công trong Settings.',
+      description: 'Cần thiết để thay đổi nhạc chuông (kể cả SIM 1 & SIM 2)',
+      detail:
+        'Trên Android & HyperOS, thay đổi nhạc chuông yêu cầu quyền đặc biệt "Modify system settings". Bạn cần bật thủ công trong Settings.',
       icon: '🔔',
       required: true,
       granted: writeSettings,
       onCheck: checkWriteSettingsPermission,
       onRequest: () => {
         openWriteSettingsScreen();
-        setTimeout(async () => setWriteSettings(await checkWriteSettingsPermission()), 2000);
       },
     },
     {
+      id: 'audio_read',
+      title: 'Truy cập nhạc & âm thanh',
+      description: 'Cần thiết trên HyperOS 1 / Android 13+ để đọc MediaStore ổn định',
+      detail:
+        'Giúp ứng dụng đọc và đăng ký file nhạc chuông trong bộ nhớ mà không bị HyperOS 1 chặn quyền truy cập.',
+      icon: '🎵',
+      required: false,
+      granted: audioRead,
+      onCheck: checkAudioReadPermission,
+      onRequest: async () => {
+        const granted = await requestAudioReadPermission();
+        setAudioRead(granted);
+      },
+    },
+    ...(Platform.OS === 'android' && Number(Platform.Version) >= 31
+      ? [
+          {
+            id: 'exact_alarm',
+            title: 'Báo thức & Lịch chính xác',
+            description: 'Giúp đổi nhạc chuông chuẩn từng phút ngay cả khi tắt màn hình',
+            detail:
+              'Cho phép AlarmManager đánh thức bộ đổi nhạc đúng giờ bắt đầu khung giờ mà không phụ thuộc mạng hay bị trễ.',
+            icon: '⏰',
+            required: false,
+            granted: exactAlarm,
+            onCheck: canScheduleExactAlarms,
+            onRequest: () => {
+              openExactAlarmSettings();
+            },
+          } as PermissionItem,
+        ]
+      : []),
+    {
       id: 'battery',
       title: 'Tắt tối ưu pin (Battery)',
-      description: 'Đặc biệt quan trọng trên MIUI/Xiaomi',
-      detail: 'Android có thể ngắt app chạy nền để tiết kiệm pin. Tắt tối ưu pin cho AutoRingtone giúp lịch nhạc chuông hoạt động đúng giờ.',
+      description: 'Đặc biệt quan trọng trên MIUI / HyperOS',
+      detail:
+        'HyperOS 1 kiểm soát chạy nền rất gắt. Tắt tối ưu pin giúp bộ hẹn giờ tự động đổi nhạc chuông không bị hệ thống đóng băng.',
       icon: '🔋',
       required: false,
       granted: batteryExempt,
       onCheck: isIgnoringBatteryOptimizations,
       onRequest: () => {
         openBatteryOptimizationSettings();
-        setTimeout(async () => setBatteryExempt(await isIgnoringBatteryOptimizations()), 2000);
       },
     },
   ];
@@ -87,24 +171,28 @@ export default function PermissionsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={{ fontSize: 22 }}>←</Text>
+          <Text style={{ fontSize: 22, color: Colors.textPrimary }}>←</Text>
         </TouchableOpacity>
         <Text style={Typography.h2}>Quyền truy cập</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-
         {/* Status banner */}
-        <View style={[styles.banner, { backgroundColor: allRequired ? 'rgba(67,198,172,0.12)' : 'rgba(255,101,132,0.12)' }]}>
+        <View
+          style={[
+            styles.banner,
+            { backgroundColor: allRequired ? 'rgba(67,198,172,0.12)' : 'rgba(255,101,132,0.12)' },
+          ]}
+        >
           <Text style={{ fontSize: 32 }}>{allRequired ? '✅' : '⚠️'}</Text>
           <View style={{ flex: 1, marginLeft: Spacing.md }}>
             <Text style={[Typography.body, { fontWeight: '700' }]}>
-              {allRequired ? 'Tất cả quyền đã được cấp' : 'Cần cấp thêm quyền'}
+              {allRequired ? 'Quyền bắt buộc đã sẵn sàng' : 'Cần cấp thêm quyền'}
             </Text>
             <Text style={Typography.bodySmall}>
               {allRequired
-                ? 'App sẵn sàng tự động đổi nhạc chuông'
+                ? 'Trên HyperOS 1+, hãy bật thêm Autostart & Không hạn chế pin bên dưới để chạy ngầm 100% ổn định'
                 : 'Nhấn vào từng mục bên dưới để thiết lập'}
             </Text>
           </View>
@@ -115,17 +203,37 @@ export default function PermissionsScreen() {
           <PermissionCard key={perm.id} item={perm} onRefresh={checkAll} />
         ))}
 
-        {/* MIUI guide */}
+        {/* MIUI / HyperOS guide + quick buttons */}
         <GlassCard style={styles.miuiCard}>
-          <Text style={[Typography.h3, { marginBottom: Spacing.sm }]}>
-            📱 Hướng dẫn cho Xiaomi / MIUI
+          <Text style={[Typography.h3, { marginBottom: 4 }]}>
+            📱 Thiết lập cho Xiaomi / HyperOS 1+
           </Text>
-          <MiuiStep step={1} text='Vào Settings → Apps → Manage apps → AutoRingtone' />
-          <MiuiStep step={2} text='Battery saver → No restrictions' />
-          <MiuiStep step={3} text='Autostart → Bật ON' />
-          <MiuiStep step={4} text='Permissions → Modify system settings → Bật ON' />
+          {!!deviceInfo?.osVersionName && (
+            <Text style={[Typography.caption, { color: Colors.accent, marginBottom: Spacing.sm }]}>
+              Thiết bị hiện tại: {deviceInfo.manufacturer} {deviceInfo.model} · {deviceInfo.osVersionName} (SDK {deviceInfo.sdkInt})
+            </Text>
+          )}
+
+          <MiuiStep step={1} text="Autostart (Tự khởi chạy) → Bật ON cho AutoRingtone" />
+          <MiuiStep step={2} text="Tiết kiệm pin MIUI/HyperOS → Không hạn chế (No restrictions)" />
+          <MiuiStep step={3} text="Quyền khác → Thay đổi cài đặt hệ thống (Modify system settings) → Cho phép" />
+
+          <View style={styles.miuiBtnGroup}>
+            <PrimaryButton
+              label="🚀 Mở cài đặt Autostart (HyperOS / MIUI)"
+              variant="outlined"
+              onPress={openMiuiAutostartSettings}
+            />
+            <View style={{ height: Spacing.xs }} />
+            <PrimaryButton
+              label="⚡ Mở Tiết kiệm pin HyperOS / MIUI"
+              variant="outlined"
+              onPress={openMiuiBatterySaverSettings}
+            />
+          </View>
+
           <Text style={[Typography.caption, { marginTop: Spacing.md, color: Colors.textMuted }]}>
-            * MIUI (HyperOS) có thể kill background apps mạnh hơn Android thuần. Các bước trên giúp app hoạt động ổn định.
+            * HyperOS 1 quản lý tiến trình nền chặt hơn HyperOS 3. Bật đủ Autostart + Không hạn chế pin giúp lịch tự động hoạt động xuyên suốt kể cả khi khởi động lại máy hoặc tắt mạng.
           </Text>
         </GlassCard>
 
@@ -140,19 +248,21 @@ export default function PermissionsScreen() {
 }
 
 function PermissionCard({ item, onRefresh }: { item: PermissionItem; onRefresh: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!item.granted);
 
-  const statusColor = item.granted === null
-    ? Colors.textMuted
-    : item.granted
-      ? Colors.success
-      : Colors.error;
+  const statusColor =
+    item.granted === null
+      ? Colors.textMuted
+      : item.granted
+        ? Colors.success
+        : Colors.error;
 
-  const statusText = item.granted === null
-    ? 'Đang kiểm tra...'
-    : item.granted
-      ? 'Đã cấp quyền'
-      : 'Chưa cấp quyền';
+  const statusText =
+    item.granted === null
+      ? 'Đang kiểm tra...'
+      : item.granted
+        ? 'Đã cấp quyền'
+        : 'Chưa cấp quyền';
 
   return (
     <GlassCard style={styles.permCard}>
@@ -187,8 +297,11 @@ function PermissionCard({ item, onRefresh }: { item: PermissionItem; onRefresh: 
           </Text>
           {!item.granted && (
             <PrimaryButton
-              label="Mở Settings để cấp quyền"
-              onPress={() => { item.onRequest(); setTimeout(onRefresh, 2500); }}
+              label="Thiết lập quyền này"
+              onPress={async () => {
+                await item.onRequest();
+                setTimeout(onRefresh, 1500);
+              }}
             />
           )}
         </View>
@@ -282,6 +395,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   miuiStepNumText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  miuiBtnGroup: {
+    marginTop: Spacing.md,
+  },
   refreshBtn: {
     alignSelf: 'center',
     padding: Spacing.md,
