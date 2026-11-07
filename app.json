@@ -2,14 +2,14 @@
   "expo": {
     "name": "AutoRingtone",
     "slug": "auto-ringtone-mi",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "autoringtone",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "9"
+      "buildNumber": "10"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +26,7 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.FOREGROUND_SERVICE"
       ],
-      "versionCode": 9
+      "versionCode": 10
     },
     "web": {
       "output": "static",
@@ -41,10 +41,10 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 184,
           "resizeMode": "contain",
-          "backgroundColor": "#0F0F1A",
+          "backgroundColor": "#000000",
           "dark": {
             "image": "./assets/images/splash-icon.png",
-            "backgroundColor": "#0F0F1A"
+            "backgroundColor": "#000000"
           }
         }
       ],
