@@ -14,7 +14,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" backgroundColor={Colors.bg} />
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -22,7 +22,7 @@ export default function RootLayout() {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="add-slot" />
         <Stack.Screen name="permissions" />
       </Stack>

@@ -8,6 +8,8 @@ export interface RingtoneInfo {
   uri: string;
 }
 
+export type NotificationApplyMode = 'both' | 'notification' | 'sms';
+
 export interface NativeLastSetRecord {
   slotId: string;
   uri: string;
@@ -35,6 +37,51 @@ function notAndroid(fn: string): never {
 export async function setSystemRingtone(uri: string, title?: string): Promise<boolean> {
   if (Platform.OS !== 'android') notAndroid('setSystemRingtone');
   return ExpoRingtone.setSystemRingtone(uri, title ?? null);
+}
+
+/**
+ * Đặt chuông thông báo / tin nhắn hệ thống Android & Xiaomi HyperOS 1+
+ * @param mode 'both' (cả Thông báo & SMS) | 'notification' (chỉ Thông báo) | 'sms' (chỉ SMS)
+ */
+export async function setSystemNotificationSound(
+  uri: string,
+  title?: string,
+  mode: NotificationApplyMode = 'both'
+): Promise<boolean> {
+  if (Platform.OS !== 'android') notAndroid('setSystemNotificationSound');
+  return ExpoRingtone.setSystemNotificationSound(uri, title ?? null, mode);
+}
+
+/**
+ * Lấy âm thông báo hiện tại
+ */
+export async function getCurrentNotificationSound(): Promise<RingtoneInfo | null> {
+  if (Platform.OS !== 'android') return null;
+  return ExpoRingtone.getCurrentNotificationSound();
+}
+
+/**
+ * Lấy danh sách các âm thông báo mặc định có sẵn trên hệ thống Android / HyperOS
+ */
+export async function getSystemNotificationTones(): Promise<RingtoneInfo[]> {
+  if (Platform.OS !== 'android') return [];
+  return ExpoRingtone.getSystemNotificationTones();
+}
+
+/**
+ * Phát nghe thử âm báo / nhạc chuông ngay trong app
+ */
+export async function previewSound(uri: string): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  return ExpoRingtone.previewSound(uri);
+}
+
+/**
+ * Dừng phát nghe thử
+ */
+export function stopPreviewSound(): void {
+  if (Platform.OS !== 'android') return;
+  ExpoRingtone.stopPreviewSound();
 }
 
 /**

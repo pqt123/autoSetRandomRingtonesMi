@@ -21,9 +21,42 @@ class ExpoRingtoneModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoRingtone")
 
+    OnDestroy {
+      RingtoneHelper.stopPreviewSound()
+    }
+
     // ─── Set ringtone từ URI (content:// hoặc file://), tương thích HyperOS 1+ ──
     AsyncFunction("setSystemRingtone") { uriString: String, titleHint: String? ->
       RingtoneHelper.setSystemRingtone(context, uriString, titleHint)
+    }
+
+    // ─── Set âm thông báo / tin nhắn (mode = "both" | "notification" | "sms") ───
+    AsyncFunction("setSystemNotificationSound") { uriString: String, titleHint: String?, mode: String? ->
+      RingtoneHelper.setSystemNotificationSound(
+        context = context,
+        uriString = uriString,
+        titleHint = titleHint,
+        mode = mode ?: "both"
+      )
+    }
+
+    // ─── Lấy âm thông báo hiện tại ──────────────────────────────────────────────
+    AsyncFunction("getCurrentNotificationSound") {
+      RingtoneHelper.getCurrentNotificationSound(context)
+    }
+
+    // ─── Lấy danh sách âm thông báo mặc định có sẵn trên máy ───────────────────
+    AsyncFunction("getSystemNotificationTones") {
+      RingtoneHelper.getSystemNotificationTones(context)
+    }
+
+    // ─── Phát / dừng nghe thử âm báo trong app ──────────────────────────────────
+    AsyncFunction("previewSound") { uriString: String ->
+      RingtoneHelper.previewSound(context, uriString)
+    }
+
+    Function("stopPreviewSound") {
+      RingtoneHelper.stopPreviewSound()
     }
 
     // ─── Lưu file âm thanh vào bộ nhớ trong bền vững của app (tránh bị Cleaner xoá) ─
