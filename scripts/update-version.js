@@ -18,9 +18,21 @@ function bumpSemver(versionStr, type = 'patch') {
     parts[1] += 1;
     parts[2] = 0;
   } else {
-    // patch
-    parts[2] += 1;
+    // patch: tối đa x.x.9, lần tăng kế tiếp reset số cuối về 0 và tăng số giữa thêm 1
+    if (parts[2] >= 9) {
+      parts[1] += 1;
+      parts[2] = 0;
+    } else {
+      parts[2] += 1;
+    }
   }
+
+  // Nếu số giữa vượt quá 9 (ví dụ 1.9.9 -> 2.0.0) thì tự động nhớ sang số đầu
+  if (parts[1] > 9) {
+    parts[0] += Math.floor(parts[1] / 10);
+    parts[1] = parts[1] % 10;
+  }
+
   return parts.join('.');
 }
 
