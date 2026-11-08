@@ -4,10 +4,32 @@ apply plugin: 'kotlin-android'
 android {
   namespace "expo.modules.ringtone"
   compileSdk rootProject.ext.compileSdkVersion
+  ndkVersion rootProject.ext.ndkVersion
 
   defaultConfig {
     minSdk rootProject.ext.minSdkVersion
     targetSdk rootProject.ext.targetSdkVersion
+    consumerProguardFiles "proguard-rules.pro"
+
+    externalNativeBuild {
+      cmake {
+        arguments "-DANDROID_STL=c++_static"
+      }
+    }
+
+    def archs = findProperty("reactNativeArchitectures")
+    if (archs) {
+      ndk {
+        abiFilters(*archs.toString().split(",").collect { it.trim() }.findAll { it })
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "src/main/cpp/CMakeLists.txt"
+      buildStagingDirectory "D:/cxx-sec"
+    }
   }
 
   compileOptions {
@@ -17,6 +39,14 @@ android {
   kotlinOptions {
     jvmTarget = "17"
   }
+}
+
+tasks.matching { it.name.startsWith("externalNativeBuildClean") }.configureEach {
+  enabled = false
+}
+
+tasks.named("clean") {
+  delete("D:/cxx-sec", ".cxx")
 }
 
 repositories {

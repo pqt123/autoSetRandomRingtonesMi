@@ -106,3 +106,33 @@ autoSetRandomRingtonesMi/
 └── modules/expo-ringtone/      # Kotlin native module
     ├── ExpoRingtoneModule.kt   # setSystemRingtone, permissions, battery
     └── expo-module.config.json # Autolinking config
+---
+
+## 🔐 Bảo mật thiết bị & Sao lưu Keystore riêng tư
+
+Chi tiết đầy đủ về cơ chế khóa thiết bị theo Serial / Mã định danh, kiến trúc chống dịch ngược C++ (`.so`) và hướng dẫn khôi phục khi cài lại máy tính được lưu tại:
+👉 **[security/README.md](./security/README.md)**
+
+### Các file riêng tư BẮT BUỘC cần sao lưu (không đẩy lên Git)
+
+| File cần sao lưu | Đường dẫn trong dự án | Ghi chú |
+| :--- | :--- | :--- |
+| **`autoringtone-release.jks`** | `android/app/autoringtone-release.jks` | Khóa ký số gốc RSA 4096-bit của riêng bạn |
+| **`keystore.properties`** | `android/keystore.properties` | Mật khẩu & cấu hình alias để mở khóa file `.jks` |
+| **`allowed-devices.json`** | `security/allowed-devices.json` | Danh sách mã Serial / Mã định danh các máy Xiaomi được cấp phép |
+
+### Thêm nhanh thiết bị Xiaomi mới
+
+Mở `security/allowed-devices.json`, thêm mã Serial (hoặc Mã định danh hiển thị trên màn hình khóa đối với máy HyperOS chưa Root) vào `"allowedIds"`, sau đó chạy `yarn b`:
+
+```json
+{
+  "requireXiaomiBrand": true,
+  "allowedIds": [
+    "79f8a214",
+    "59a422df",
+    "2b88b96a",
+    "ma_moi_sau_nay"
+  ]
+}
+```

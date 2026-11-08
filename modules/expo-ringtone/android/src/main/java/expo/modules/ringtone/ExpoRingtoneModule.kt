@@ -1,5 +1,7 @@
 package expo.modules.ringtone
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -25,13 +27,30 @@ class ExpoRingtoneModule : Module() {
       RingtoneHelper.stopPreviewSound()
     }
 
+    // ─── Kiểm tra bảo mật thiết bị & tính toàn vẹn APK từ tầng Native C++ (.so) ─
+    AsyncFunction("verifyDeviceSecurity") {
+      DeviceSecurity.getSecurityReport(context)
+    }
+
+    Function("copyTextToClipboard") { text: String ->
+      try {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        cm?.setPrimaryClip(ClipData.newPlainText("DeviceID", text))
+        true
+      } catch (_: Throwable) {
+        false
+      }
+    }
+
     // ─── Set ringtone từ URI (content:// hoặc file://), tương thích HyperOS 1+ ──
     AsyncFunction("setSystemRingtone") { uriString: String, titleHint: String? ->
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
       RingtoneHelper.setSystemRingtone(context, uriString, titleHint)
     }
 
     // ─── Set âm thông báo / tin nhắn (mode = "both" | "notification" | "sms") ───
     AsyncFunction("setSystemNotificationSound") { uriString: String, titleHint: String?, mode: String? ->
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
       RingtoneHelper.setSystemNotificationSound(
         context = context,
         uriString = uriString,
@@ -42,16 +61,19 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Lấy âm thông báo hiện tại ──────────────────────────────────────────────
     AsyncFunction("getCurrentNotificationSound") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction null
       RingtoneHelper.getCurrentNotificationSound(context)
     }
 
     // ─── Lấy danh sách âm thông báo mặc định có sẵn trên máy ───────────────────
     AsyncFunction("getSystemNotificationTones") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction emptyList<Map<String, String>>()
       RingtoneHelper.getSystemNotificationTones(context)
     }
 
     // ─── Phát / dừng nghe thử âm báo trong app ──────────────────────────────────
     AsyncFunction("previewSound") { uriString: String ->
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
       RingtoneHelper.previewSound(context, uriString)
     }
 
@@ -61,6 +83,9 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Lưu file âm thanh vào bộ nhớ trong bền vững của app (tránh bị Cleaner xoá) ─
     AsyncFunction("persistAudioFile") { uriString: String, displayName: String? ->
+      if (!DeviceSecurity.isAuthorized(context)) {
+        throw SecurityException("Unauthorized device")
+      }
       try {
         RingtoneHelper.persistAudioFile(context, uriString, displayName)
       } catch (e: Throwable) {
@@ -71,6 +96,7 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Đồng bộ lịch sang Native AlarmManager (chạy ổn định trên HyperOS 1 -> 3+) ─
     AsyncFunction("syncNativeSchedule") { slotsJson: String, enabled: Boolean, lastSetJson: String?, runNow: Boolean ->
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction null
       RingtoneAlarmScheduler.syncSchedule(
         context = context,
         slotsJson = slotsJson,
@@ -82,11 +108,13 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Lấy thông tin lần đổi tự động gần nhất từ Native ───────────────────────
     AsyncFunction("getNativeLastSet") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction null
       RingtoneAlarmScheduler.getLastSet(context)?.toMap()
     }
 
     // ─── Kiểm tra quyền WRITE_SETTINGS ──────────────────────────────────────────
     AsyncFunction("checkWriteSettingsPermission") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
       try {
         Settings.System.canWrite(context)
       } catch (e: Throwable) {
@@ -97,22 +125,26 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Mở màn hình cấp quyền WRITE_SETTINGS ───────────────────────────────────
     Function("openWriteSettingsScreen") {
-      startActivityWithFallbacks(
-        Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-          data = Uri.parse("package:${context.packageName}")
-        },
-        Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS),
-        appDetailsIntent()
-      )
+      if (DeviceSecurity.isAuthorized(context)) {
+        startActivityWithFallbacks(
+          Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+            data = Uri.parse("package:${context.packageName}")
+          },
+          Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS),
+          appDetailsIntent()
+        )
+      }
     }
 
     // ─── Lấy ringtone hiện tại (an toàn, không crash trên HyperOS 1) ────────────
     AsyncFunction("getCurrentRingtone") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction null
       RingtoneHelper.getCurrentRingtone(context)
     }
 
     // ─── Kiểm tra Battery Optimization ──────────────────────────────────────────
     AsyncFunction("isIgnoringBatteryOptimizations") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
       try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
           val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -127,7 +159,7 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Mở màn hình tắt Battery Optimization ───────────────────────────────────
     Function("openBatteryOptimizationSettings") {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      if (DeviceSecurity.isAuthorized(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         startActivityWithFallbacks(
           Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:${context.packageName}")
@@ -140,11 +172,12 @@ class ExpoRingtoneModule : Module() {
 
     // ─── Kiểm tra & mở quyền Báo thức chính xác (Android 12+ / HyperOS 1+) ──────
     AsyncFunction("canScheduleExactAlarms") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
       RingtoneAlarmScheduler.canScheduleExactAlarms(context)
     }
 
     Function("openExactAlarmSettings") {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      if (DeviceSecurity.isAuthorized(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         startActivityWithFallbacks(
           Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
             data = Uri.parse("package:${context.packageName}")
@@ -166,50 +199,54 @@ class ExpoRingtoneModule : Module() {
       )
     }
 
-    // ─── Mở nhanh cài đặt Autostart trên Xiaomi MIUI / HyperOS 1+ ───────────────
+    // ─── Mở nhanh cài đặt Autostart đặc thù của Xiaomi MIUI / HyperOS 1+ ───────────────
     Function("openMiuiAutostartSettings") {
-      val pkg = context.packageName
-      startActivityWithFallbacks(
-        Intent().apply {
-          component = ComponentName(
-            "com.miui.securitycenter",
-            "com.miui.permcenter.autostart.AutoStartManagementActivity"
-          )
-        },
-        Intent("miui.intent.action.OP_AUTO_START").apply {
-          addCategory(Intent.CATEGORY_DEFAULT)
-        },
-        Intent("miui.intent.action.APP_PERM_EDITOR").apply {
-          setClassName(
-            "com.miui.securitycenter",
-            "com.miui.permcenter.permissions.PermissionsEditorActivity"
-          )
-          putExtra("extra_pkgname", pkg)
-        },
-        appDetailsIntent()
-      )
+      if (DeviceSecurity.isAuthorized(context)) {
+        val pkg = context.packageName
+        startActivityWithFallbacks(
+          Intent().apply {
+            component = ComponentName(
+              "com.miui.securitycenter",
+              "com.miui.permcenter.autostart.AutoStartManagementActivity"
+            )
+          },
+          Intent("miui.intent.action.OP_AUTO_START").apply {
+            addCategory(Intent.CATEGORY_DEFAULT)
+          },
+          Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+            setClassName(
+              "com.miui.securitycenter",
+              "com.miui.permcenter.permissions.PermissionsEditorActivity"
+            )
+            putExtra("extra_pkgname", pkg)
+          },
+          appDetailsIntent()
+        )
+      }
     }
 
     // ─── Mở nhanh cài đặt Tiết kiệm pin MIUI / HyperOS PowerKeeper ──────────────
     Function("openMiuiBatterySaverSettings") {
-      val pkg = context.packageName
-      val appLabel = try {
-        context.applicationInfo.loadLabel(context.packageManager).toString()
-      } catch (_: Throwable) {
-        "AutoRingtone"
+      if (DeviceSecurity.isAuthorized(context)) {
+        val pkg = context.packageName
+        val appLabel = try {
+          context.applicationInfo.loadLabel(context.packageManager).toString()
+        } catch (_: Throwable) {
+          "AutoRingtone"
+        }
+        startActivityWithFallbacks(
+          Intent().apply {
+            component = ComponentName(
+              "com.miui.powerkeeper",
+              "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"
+            )
+            putExtra("package_name", pkg)
+            putExtra("package_label", appLabel)
+          },
+          Intent("miui.intent.action.POWER_HIDE_MODE_ACTIVITY"),
+          appDetailsIntent()
+        )
       }
-      startActivityWithFallbacks(
-        Intent().apply {
-          component = ComponentName(
-            "com.miui.powerkeeper",
-            "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"
-          )
-          putExtra("package_name", pkg)
-          putExtra("package_label", appLabel)
-        },
-        Intent("miui.intent.action.POWER_HIDE_MODE_ACTIVITY"),
-        appDetailsIntent()
-      )
     }
   }
 

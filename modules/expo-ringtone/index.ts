@@ -25,8 +25,46 @@ export interface DeviceSystemInfo {
   model: string;
 }
 
+export interface SecurityVerificationReport {
+  authorized: boolean;
+  /**
+   * 0 = Authorized
+   * 1 = Unlisted Xiaomi Device
+   * 2 = Non-Xiaomi / Emulator
+   * 3 = Tampered Package Name
+   * 4 = Tampered APK Signature
+   * 5 = Hook / Debugger Detected
+   */
+  statusCode: number;
+  deviceId: string;
+  deviceModel: string;
+}
+
 function notAndroid(fn: string): never {
   throw new Error(`ExpoRingtone.${fn}: Android only`);
+}
+
+/**
+ * Xác thực bảo mật thiết bị & tính toàn vẹn chữ ký APK từ tầng Native C++ (.so)
+ */
+export async function verifyDeviceSecurity(): Promise<SecurityVerificationReport> {
+  if (Platform.OS !== 'android') {
+    return {
+      authorized: false,
+      statusCode: 2,
+      deviceId: 'UNSUPPORTED_PLATFORM',
+      deviceModel: Platform.OS,
+    };
+  }
+  return ExpoRingtone.verifyDeviceSecurity();
+}
+
+/**
+ * Sao chép văn bản vào Clipboard hệ thống
+ */
+export function copyTextToClipboard(text: string): boolean {
+  if (Platform.OS !== 'android') return false;
+  return ExpoRingtone.copyTextToClipboard(text);
 }
 
 /**

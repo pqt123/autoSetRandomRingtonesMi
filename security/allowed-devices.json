@@ -1,0 +1,10 @@
+{
+  "_huongDan": "Thêm mã Serial phần cứng (hoặc Mã định danh thiết bị hiển thị trên màn hình khóa của máy mới) vào mảng allowedIds bên dưới, sau đó chạy `yarn b` (tự động đồng bộ & xuất APK) hoặc `yarn sec`.",
+  "requireXiaomiBrand": true,
+  "allowedIds": [
+    "7ba088261a2dcd0f",
+    "e1ec729958ae6344",
+    "21dae1a1f19e4944"
+  ]
+}
+

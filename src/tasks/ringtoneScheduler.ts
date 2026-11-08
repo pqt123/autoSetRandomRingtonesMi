@@ -7,6 +7,7 @@ import {
   checkWriteSettingsPermission,
   syncNativeSchedule,
   getNativeLastSet,
+  verifyDeviceSecurity,
   NativeLastSetRecord,
 } from '../../modules/expo-ringtone';
 
@@ -83,6 +84,11 @@ async function getMergedLastSet(): Promise<NativeLastSetRecord | null> {
  */
 TaskManager.defineTask(RINGTONE_SCHEDULER_TASK, async () => {
   try {
+    const sec = await verifyDeviceSecurity().catch(() => null);
+    if (!sec?.authorized) {
+      return BackgroundTask.BackgroundTaskResult.Failed;
+    }
+
     const enabledJson = await AsyncStorage.getItem(SCHEDULER_KEY);
     const schedulerEnabled: boolean = enabledJson ? JSON.parse(enabledJson) : false;
     if (!schedulerEnabled) {
