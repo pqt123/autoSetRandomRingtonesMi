@@ -18,6 +18,21 @@
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
+    <intent>
+      <action android:name="android.intent.action.MAIN"/>
+      <category android:name="android.intent.category.LAUNCHER"/>
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.DIAL"/>
+    </intent>
+    <intent>
+      <action android:name="android.telecom.InCallService"/>
+    </intent>
+    <package android:name="com.zing.zalo"/>
+    <package android:name="com.facebook.orca"/>
+    <package android:name="com.whatsapp"/>
+    <package android:name="org.telegram.messenger"/>
+    <package android:name="com.viber.voip"/>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false" android:requestLegacyExternalStorage="true">
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>

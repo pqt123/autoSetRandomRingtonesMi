@@ -2,14 +2,14 @@
   "expo": {
     "name": "AutoRingtone",
     "slug": "auto-ringtone-mi",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "autoringtone",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "12"
+      "buildNumber": "13"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +26,7 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.FOREGROUND_SERVICE"
       ],
-      "versionCode": 12
+      "versionCode": 13
     },
     "web": {
       "output": "static",
