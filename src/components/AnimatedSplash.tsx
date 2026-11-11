@@ -111,13 +111,34 @@ function createAnimValues() {
 
 interface AnimatedSplashProps {
   onFinish: () => void;
+  isAppActive?: boolean;
 }
 
-export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
+export default function AnimatedSplash({
+  onFinish,
+  isAppActive = true,
+}: AnimatedSplashProps) {
   const [anim] = useState(createAnimValues);
   const [activeEffect, setActiveEffect] = useState<number | null>(null);
   const [fadingOut, setFadingOut] = useState(false);
   const startedRef = useRef(false);
+  const imageLoadedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const isAppActiveRef = useRef(isAppActive);
+  const activeMasterAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (unlockTimerRef.current) {
+        clearTimeout(unlockTimerRef.current);
+        unlockTimerRef.current = null;
+      }
+      activeMasterAnimRef.current?.stop();
+    };
+  }, []);
 
   const runEffectAnimation = useCallback(
     (effectIndex: number) => {
@@ -754,23 +775,34 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
       }
 
       // Cho phép thao tác xuyên qua lớp phủ trong 300ms mờ dần cuối cùng
-      const unlockTimer = setTimeout(() => {
-        setFadingOut(true);
+      unlockTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setFadingOut(true);
+        }
       }, 1050);
 
-      masterAnim.start(() => {
-        clearTimeout(unlockTimer);
-        onFinish();
+      activeMasterAnimRef.current = masterAnim;
+      masterAnim.start(({ finished }) => {
+        if (unlockTimerRef.current) {
+          clearTimeout(unlockTimerRef.current);
+          unlockTimerRef.current = null;
+        }
+        if (finished && mountedRef.current) {
+          onFinish();
+        }
       });
     },
     [anim, onFinish]
   );
 
-  const handleReadyToAnimate = useCallback(async () => {
-    if (startedRef.current) return;
+  const triggerAnimationIfReady = useCallback(async () => {
+    if (startedRef.current || !isAppActiveRef.current || !imageLoadedRef.current) {
+      return;
+    }
     startedRef.current = true;
 
     const chosenEffect = await pickRandomEffectIndex();
+    if (!mountedRef.current) return;
     setActiveEffect(chosenEffect);
 
     // Ẩn ngay màn hình Splash tĩnh của Android (vì lớp phủ JS đen #000000 + logo 184dp đã đè khít 100%)
@@ -781,17 +813,34 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     }
 
     requestAnimationFrame(() => {
-      runEffectAnimation(chosenEffect);
+      if (mountedRef.current) {
+        runEffectAnimation(chosenEffect);
+      }
     });
   }, [runEffectAnimation]);
 
-  // Fallback an toàn phòng trường hợp sự kiện onLoadEnd của ảnh cache không kích hoạt lại
+  const handleImageLoaded = useCallback(() => {
+    imageLoadedRef.current = true;
+    triggerAnimationIfReady();
+  }, [triggerAnimationIfReady]);
+
+  // Khi app đang active (lúc mới mở hoặc vừa quay lại từ đa nhiệm/màn hình khoá) -> phát ngay hiệu ứng Splash
   useEffect(() => {
+    isAppActiveRef.current = isAppActive;
+    if (!isAppActive) return;
+
+    if (imageLoadedRef.current) {
+      triggerAnimationIfReady();
+      return;
+    }
+
+    // Fallback an toàn phòng trường hợp sự kiện onLoadEnd của ảnh cache không kích hoạt lại
     const safetyTimer = setTimeout(() => {
-      handleReadyToAnimate();
-    }, 180);
+      imageLoadedRef.current = true;
+      triggerAnimationIfReady();
+    }, 150);
     return () => clearTimeout(safetyTimer);
-  }, [handleReadyToAnimate]);
+  }, [isAppActive, triggerAnimationIfReady]);
 
   const logoSpin = anim.logoRotate.interpolate({
     inputRange: [-360, 0, 360, 720],
@@ -1006,7 +1055,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
             style={styles.logo}
             resizeMode="contain"
             fadeDuration={0}
-            onLoadEnd={handleReadyToAnimate}
+            onLoadEnd={handleImageLoaded}
           />
         </Animated.View>
 

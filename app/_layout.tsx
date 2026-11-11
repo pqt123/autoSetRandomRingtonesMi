@@ -1,6 +1,6 @@
 import '../src/tasks/ringtoneScheduler'; // IMPORTANT: Must be imported at the root level for background task registration
-import { useEffect, useState } from 'react';
-import { AppState, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, AppStateStatus, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -23,7 +23,13 @@ SplashScreen.setOptions({
 export default function RootLayout() {
   const loadFromStorage = useStore(s => s.loadFromStorage);
   const [showSplash, setShowSplash] = useState(true);
+  const [splashRunId, setSplashRunId] = useState(0);
+  const [isAppActive, setIsAppActive] = useState<boolean>(
+    AppState.currentState === 'active'
+  );
   const [secReport, setSecReport] = useState<SecurityVerificationReport | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const armedForResumeSplashRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -50,7 +56,29 @@ export default function RootLayout() {
     checkSecurityAndLoad();
 
     const sub = AppState.addEventListener('change', nextState => {
-      if (nextState === 'active') {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (nextState === 'background' || nextState === 'inactive') {
+        setIsAppActive(false);
+        // Khi thoát/ẩn app ra ngoài: phủ sẵn màn hình đen + logo ở trạng thái chờ
+        // để khi quay lại app không bị nháy khung hình cũ mà chạy hiệu ứng Splash ngay lập tức
+        if (!armedForResumeSplashRef.current) {
+          armedForResumeSplashRef.current = true;
+          setSplashRunId(id => id + 1);
+          setShowSplash(true);
+        }
+      } else if (nextState === 'active') {
+        if (
+          (prevState === 'background' || prevState === 'inactive') &&
+          !armedForResumeSplashRef.current
+        ) {
+          setSplashRunId(id => id + 1);
+          setShowSplash(true);
+        }
+        armedForResumeSplashRef.current = false;
+        setIsAppActive(true);
+
         verifyDeviceSecurity()
           .then(rep => {
             if (mounted) setSecReport(rep);
@@ -89,7 +117,13 @@ export default function RootLayout() {
         <SecurityGateScreen report={secReport} />
       )}
 
-      {showSplash && <AnimatedSplash onFinish={() => setShowSplash(false)} />}
+      {showSplash && (
+        <AnimatedSplash
+          key={splashRunId}
+          isAppActive={isAppActive}
+          onFinish={() => setShowSplash(false)}
+        />
+      )}
     </View>
   );
 }
