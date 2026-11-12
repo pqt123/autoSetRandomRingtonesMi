@@ -5,10 +5,12 @@ import {
   Image,
   StatusBar as RNStatusBar,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { APP_VERSION } from '../appInfo';
 
 const SPLASH_LOGO = require('../../assets/images/splash-icon.png');
 const LAST_ANIM_STORAGE_KEY = '@autoringtone_last_splash_anim';
@@ -1087,11 +1089,27 @@ export default function AnimatedSplash({
           />
         )}
       </View>
+
+      {/* Dòng chữ version app ở dưới cùng màn hình Splash (lấy từ package.json) */}
+      <Text style={styles.versionText} pointerEvents="none">
+        Phiên bản {APP_VERSION}
+      </Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  versionText: {
+    position: 'absolute',
+    bottom: 38,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontSize: 12.5,
+    fontWeight: '500',
+    letterSpacing: 1.2,
+  },
   overlay: {
     position: 'absolute',
     top: 0,
