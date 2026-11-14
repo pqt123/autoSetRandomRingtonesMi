@@ -11,6 +11,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '../appInfo';
+import { useTranslation } from '../i18n';
 
 const SPLASH_LOGO = require('../../assets/images/splash-icon.png');
 const LAST_ANIM_STORAGE_KEY = '@autoringtone_last_splash_anim';
@@ -120,6 +121,7 @@ export default function AnimatedSplash({
   onFinish,
   isAppActive = true,
 }: AnimatedSplashProps) {
+  const { t } = useTranslation();
   const [anim] = useState(createAnimValues);
   const [activeEffect, setActiveEffect] = useState<number | null>(null);
   const [fadingOut, setFadingOut] = useState(false);
@@ -1092,7 +1094,7 @@ export default function AnimatedSplash({
 
       {/* Dòng chữ version app ở dưới cùng màn hình Splash (lấy từ package.json) */}
       <Text style={styles.versionText} pointerEvents="none">
-        Phiên bản {APP_VERSION}
+        {t.common.version(APP_VERSION)}
       </Text>
     </Animated.View>
   );

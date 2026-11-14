@@ -8,16 +8,22 @@ import {
   TextInput,
   Alert,
   StatusBar,
-  Platform,
   Modal,
-  FlatList,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
-import { GlassCard, PrimaryButton, TimeBadge, SectionHeader, ToggleSwitch } from '../components/ui';
+import {
+  GlassCard,
+  PrimaryButton,
+  TimeBadge,
+  SectionHeader,
+  ToggleSwitch,
+  LanguageToggleButton,
+} from '../components/ui';
 import { useStore } from '../store/useStore';
-import { TimeSlot, RingtoneInfo } from '../types';
+import { useTranslation } from '../i18n';
+import { RingtoneInfo } from '../types';
 import { persistAudioFile } from '../../modules/expo-ringtone';
 
 // ─── Time Picker Modal ────────────────────────────────────────────────────────
@@ -36,6 +42,7 @@ function TimePickerModal({
   onCancel: () => void;
   title: string;
 }) {
+  const { t } = useTranslation();
   const [selH, setSelH] = useState(hour);
   const [selM, setSelM] = useState(minute);
 
@@ -53,7 +60,7 @@ function TimePickerModal({
           <View style={styles.pickerRow}>
             {/* Hour picker */}
             <View style={styles.pickerCol}>
-              <Text style={Typography.label}>GIỜ</Text>
+              <Text style={Typography.label}>{t.addSlot.hourLabel}</Text>
               <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                 {hours.map(h => (
                   <TouchableOpacity
@@ -76,7 +83,7 @@ function TimePickerModal({
 
             {/* Minute picker */}
             <View style={styles.pickerCol}>
-              <Text style={Typography.label}>PHÚT</Text>
+              <Text style={Typography.label}>{t.addSlot.minuteLabel}</Text>
               <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                 {minutes.map(m => (
                   <TouchableOpacity
@@ -97,9 +104,9 @@ function TimePickerModal({
           </View>
 
           <View style={styles.modalButtons}>
-            <PrimaryButton label="Hủy" onPress={onCancel} variant="ghost" style={{ flex: 1 }} />
+            <PrimaryButton label={t.common.cancel} onPress={onCancel} variant="ghost" style={{ flex: 1 }} />
             <View style={{ width: Spacing.sm }} />
-            <PrimaryButton label="Xác nhận" onPress={() => onConfirm(selH, selM)} style={{ flex: 1 }} />
+            <PrimaryButton label={t.common.confirm} onPress={() => onConfirm(selH, selM)} style={{ flex: 1 }} />
           </View>
         </View>
       </View>
@@ -111,6 +118,7 @@ function TimePickerModal({
 export default function AddSlotScreen() {
   const { slotId } = useLocalSearchParams<{ slotId?: string }>();
   const { slots, addSlot, updateSlot, deleteSlot } = useStore();
+  const { t } = useTranslation();
 
   const existingSlot = slotId ? slots.find(s => s.id === slotId) : undefined;
   const isEditing = !!existingSlot;
@@ -135,11 +143,11 @@ export default function AddSlotScreen() {
   );
 
   const INTERVAL_PRESETS = [
-    { label: '1 tiếng', minutes: 60 },
-    { label: '30 phút', minutes: 30 },
-    { label: '2 tiếng', minutes: 120 },
-    { label: '3 tiếng', minutes: 180 },
-    { label: 'Chỉ 1 lần', minutes: 0 },
+    { label: t.addSlot.preset1h, minutes: 60 },
+    { label: t.addSlot.preset30m, minutes: 30 },
+    { label: t.addSlot.preset2h, minutes: 120 },
+    { label: t.addSlot.preset3h, minutes: 180 },
+    { label: t.addSlot.presetOnce, minutes: 0 },
   ];
 
   const handlePickAudio = async () => {
@@ -165,10 +173,10 @@ export default function AddSlotScreen() {
 
       // Tránh trùng lặp theo URI hoặc tên bài
       const existingUris = new Set(playlist.map(p => p.uri));
-      const unique = newTracks.filter(t => !existingUris.has(t.uri));
+      const unique = newTracks.filter(tr => !existingUris.has(tr.uri));
       setPlaylist(prev => [...prev, ...unique]);
-    } catch (e) {
-      Alert.alert('Lỗi', 'Không thể chọn file âm thanh');
+    } catch {
+      Alert.alert(t.common.errorTitle, t.addSlot.alertPickErrMsg);
     }
   };
 
@@ -178,11 +186,11 @@ export default function AddSlotScreen() {
 
   const handleSave = async () => {
     if (!label.trim()) {
-      Alert.alert('Thiếu tên', 'Vui lòng nhập tên cho khung giờ này');
+      Alert.alert(t.addSlot.alertMissingNameTitle, t.addSlot.alertMissingNameMsg);
       return;
     }
     if (playlist.length === 0) {
-      Alert.alert('Chưa có nhạc', 'Thêm ít nhất 1 bài vào playlist');
+      Alert.alert(t.addSlot.alertEmptyPlaylistTitle, t.addSlot.alertEmptyPlaylistMsg);
       return;
     }
 
@@ -215,12 +223,12 @@ export default function AddSlotScreen() {
   const handleDelete = () => {
     if (!slotId) return;
     Alert.alert(
-      'Xóa khung giờ',
-      `Xóa "${existingSlot?.label}"?`,
+      t.addSlot.alertDeleteTitle,
+      t.addSlot.alertDeleteMsg(existingSlot?.label ?? ''),
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Xóa',
+          text: t.common.delete,
           style: 'destructive',
           onPress: async () => {
             await deleteSlot(slotId);
@@ -231,6 +239,15 @@ export default function AddSlotScreen() {
     );
   };
 
+  const getRotationSubText = () => {
+    if (!autoRotate) return t.addSlot.rotationOffSub;
+    if (isCustomInterval) return t.addSlot.rotationCustomSub(customMinutesText || '60');
+    if (changeIntervalMinutes === 0) return t.addSlot.rotationOnceSub;
+    if (changeIntervalMinutes === 60) return t.addSlot.rotationOneHourSub;
+    if (changeIntervalMinutes >= 60) return t.addSlot.rotationHoursSub(changeIntervalMinutes / 60);
+    return t.addSlot.rotationMinutesSub(changeIntervalMinutes);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.bg} />
@@ -238,28 +255,29 @@ export default function AddSlotScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={{ fontSize: 22 }}>←</Text>
+          <Text style={{ fontSize: 22, color: Colors.textPrimary }}>←</Text>
         </TouchableOpacity>
-        <Text style={Typography.h2}>{isEditing ? 'Sửa khung giờ' : 'Thêm khung giờ'}</Text>
-        {isEditing ? (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-            <Text style={{ fontSize: 20 }}>🗑</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
+        <Text style={Typography.h2}>{isEditing ? t.addSlot.editHeader : t.addSlot.addHeader}</Text>
+        <View style={styles.headerRight}>
+          <LanguageToggleButton />
+          {isEditing && (
+            <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+              <Text style={{ fontSize: 20 }}>🗑</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
 
         {/* ── Label ── */}
         <GlassCard style={styles.section}>
-          <SectionHeader title="Tên khung giờ" />
+          <SectionHeader title={t.addSlot.slotNameHeader} />
           <TextInput
             style={styles.input}
             value={label}
             onChangeText={setLabel}
-            placeholder="VD: Buổi sáng, Giờ học..."
+            placeholder={t.addSlot.slotNamePlaceholder}
             placeholderTextColor={Colors.textMuted}
             maxLength={30}
           />
@@ -267,11 +285,11 @@ export default function AddSlotScreen() {
 
         {/* ── Time Range ── */}
         <GlassCard style={styles.section}>
-          <SectionHeader title="Khung giờ" />
+          <SectionHeader title={t.addSlot.timeRangeHeader} />
           <View style={styles.timeRow}>
             {/* Start */}
             <View style={styles.timeBlock}>
-              <Text style={Typography.bodySmall}>Bắt đầu</Text>
+              <Text style={Typography.bodySmall}>{t.addSlot.startLabel}</Text>
               <TouchableOpacity
                 onPress={() => setShowStartPicker(true)}
                 style={styles.timeTouchable}
@@ -284,7 +302,7 @@ export default function AddSlotScreen() {
 
             {/* End */}
             <View style={styles.timeBlock}>
-              <Text style={Typography.bodySmall}>Kết thúc</Text>
+              <Text style={Typography.bodySmall}>{t.addSlot.endLabel}</Text>
               <TouchableOpacity
                 onPress={() => setShowEndPicker(true)}
                 style={styles.timeTouchable}
@@ -299,15 +317,9 @@ export default function AddSlotScreen() {
         <GlassCard style={styles.section}>
           <View style={styles.rotationRow}>
             <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-              <Text style={Typography.h3}>Đổi nhạc định kỳ</Text>
+              <Text style={Typography.h3}>{t.addSlot.rotationTitle}</Text>
               <Text style={[Typography.bodySmall, { marginTop: 2 }]}>
-                {autoRotate
-                  ? (isCustomInterval
-                      ? `Đổi ngẫu nhiên mỗi ${customMinutesText || '60'} phút`
-                      : changeIntervalMinutes === 0
-                      ? 'Chỉ đổi 1 lần khi bắt đầu khung giờ'
-                      : `Đổi ngẫu nhiên mỗi ${changeIntervalMinutes === 60 ? '1 tiếng' : (changeIntervalMinutes >= 60 ? (changeIntervalMinutes / 60) + ' tiếng' : changeIntervalMinutes + ' phút')}`)
-                  : 'Tắt (chỉ đổi 1 lần khi bắt đầu)'}
+                {getRotationSubText()}
               </Text>
             </View>
             <ToggleSwitch
@@ -319,7 +331,7 @@ export default function AddSlotScreen() {
           {autoRotate && (
             <View style={styles.intervalContainer}>
               <Text style={[Typography.label, { marginBottom: Spacing.xs, marginTop: Spacing.md }]}>
-                TẦN SUẤT ĐỔI NHẠC
+                {t.addSlot.frequencyLabel}
               </Text>
               <View style={styles.presetContainer}>
                 {INTERVAL_PRESETS.map(item => {
@@ -345,14 +357,14 @@ export default function AddSlotScreen() {
                   style={[styles.presetChip, isCustomInterval && styles.presetChipSelected]}
                 >
                   <Text style={[styles.presetChipText, isCustomInterval && styles.presetChipTextSelected]}>
-                    ✏️ Tùy chỉnh
+                    {t.addSlot.presetCustom}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {isCustomInterval && (
                 <View style={styles.customInputRow}>
-                  <Text style={Typography.body}>Đổi ngẫu nhiên mỗi:</Text>
+                  <Text style={Typography.body}>{t.addSlot.customEveryLabel}</Text>
                   <TextInput
                     style={styles.customInput}
                     value={customMinutesText}
@@ -362,7 +374,7 @@ export default function AddSlotScreen() {
                     placeholder="60"
                     placeholderTextColor={Colors.textMuted}
                   />
-                  <Text style={Typography.body}>phút</Text>
+                  <Text style={Typography.body}>{t.addSlot.customMinutesUnit}</Text>
                 </View>
               )}
             </View>
@@ -372,12 +384,12 @@ export default function AddSlotScreen() {
         {/* ── Playlist ── */}
         <GlassCard style={styles.section}>
           <SectionHeader
-            title={`Playlist (${playlist.length} bài)`}
-            subtitle="Random 1 bài mỗi lần scheduler chạy"
+            title={t.addSlot.playlistHeader(playlist.length)}
+            subtitle={t.addSlot.playlistSub}
           />
 
           <PrimaryButton
-            label="＋ Chọn file âm thanh"
+            label={t.addSlot.pickAudioBtn}
             onPress={handlePickAudio}
             variant="outlined"
             style={{ marginTop: Spacing.sm, marginBottom: Spacing.md }}
@@ -387,7 +399,7 @@ export default function AddSlotScreen() {
             <View style={styles.emptyPlaylist}>
               <Text style={{ fontSize: 36 }}>🎼</Text>
               <Text style={[Typography.bodySmall, { marginTop: Spacing.sm, textAlign: 'center' }]}>
-                Chưa có bài nào. Thêm file mp3/m4a/ogg từ bộ nhớ máy.
+                {t.addSlot.emptyPlaylistText}
               </Text>
             </View>
           ) : (
@@ -412,7 +424,7 @@ export default function AddSlotScreen() {
 
         {/* ── Save Button ── */}
         <PrimaryButton
-          label={isEditing ? '💾 Lưu thay đổi' : '✓ Tạo khung giờ'}
+          label={isEditing ? t.addSlot.saveChangesBtn : t.addSlot.createSlotBtn}
           onPress={handleSave}
           style={{ marginTop: Spacing.sm }}
         />
@@ -425,7 +437,7 @@ export default function AddSlotScreen() {
         visible={showStartPicker}
         hour={startHour}
         minute={startMinute}
-        title="Chọn giờ bắt đầu"
+        title={t.addSlot.pickStartTitle}
         onConfirm={(h, m) => { setStartHour(h); setStartMinute(m); setShowStartPicker(false); }}
         onCancel={() => setShowStartPicker(false)}
       />
@@ -433,7 +445,7 @@ export default function AddSlotScreen() {
         visible={showEndPicker}
         hour={endHour}
         minute={endMinute}
-        title="Chọn giờ kết thúc"
+        title={t.addSlot.pickEndTitle}
         onConfirm={(h, m) => { setEndHour(h); setEndMinute(m); setShowEndPicker(false); }}
         onCancel={() => setShowEndPicker(false)}
       />
@@ -456,7 +468,12 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   backBtn: { width: 40, alignItems: 'flex-start' },
-  deleteBtn: { width: 40, alignItems: 'flex-end' },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  deleteBtn: { paddingLeft: 4, alignItems: 'flex-end' },
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
   section: { marginBottom: Spacing.md },
   input: {

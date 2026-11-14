@@ -11,6 +11,7 @@ import {
   verifyDeviceSecurity,
 } from '../modules/expo-ringtone';
 import { useStore } from '../src/store/useStore';
+import { useI18nStore } from '../src/i18n';
 import { Colors } from '../src/theme';
 
 // Giữ màn hình Splash gốc cho tới khi lớp phủ AnimatedSplash sẵn sàng nối tiếp mượt mà
@@ -22,6 +23,7 @@ SplashScreen.setOptions({
 
 export default function RootLayout() {
   const loadFromStorage = useStore(s => s.loadFromStorage);
+  const loadLanguage = useI18nStore(s => s.loadLanguage);
   const [showSplash, setShowSplash] = useState(true);
   const [splashRunId, setSplashRunId] = useState(0);
   const [isAppActive, setIsAppActive] = useState<boolean>(
@@ -33,6 +35,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     let mounted = true;
+    loadLanguage();
 
     const checkSecurityAndLoad = async () => {
       try {

@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
-import { GlassCard, PrimaryButton } from '../components/ui';
+import { GlassCard, PrimaryButton, LanguageToggleButton } from '../components/ui';
+import { useTranslation } from '../i18n';
 import {
   checkWriteSettingsPermission,
   openWriteSettingsScreen,
@@ -67,6 +68,7 @@ async function requestAudioReadPermission(): Promise<boolean> {
 }
 
 export default function PermissionsScreen() {
+  const { t } = useTranslation();
   const [writeSettings, setWriteSettings] = useState<boolean | null>(null);
   const [audioRead, setAudioRead] = useState<boolean | null>(null);
   const [exactAlarm, setExactAlarm] = useState<boolean | null>(null);
@@ -101,10 +103,9 @@ export default function PermissionsScreen() {
   const permissions: PermissionItem[] = [
     {
       id: 'write_settings',
-      title: 'Sửa cài đặt hệ thống',
-      description: 'Cần thiết để thay đổi nhạc chuông (kể cả SIM 1 & SIM 2)',
-      detail:
-        'Trên Android & HyperOS, thay đổi nhạc chuông yêu cầu quyền đặc biệt "Modify system settings". Bạn cần bật thủ công trong Settings.',
+      title: t.permissions.writeSettingsTitle,
+      description: t.permissions.writeSettingsDesc,
+      detail: t.permissions.writeSettingsDetail,
       icon: '🔔',
       required: true,
       granted: writeSettings,
@@ -115,10 +116,9 @@ export default function PermissionsScreen() {
     },
     {
       id: 'audio_read',
-      title: 'Truy cập nhạc & âm thanh',
-      description: 'Cần thiết trên HyperOS 1 / Android 13+ để đọc MediaStore ổn định',
-      detail:
-        'Giúp ứng dụng đọc và đăng ký file nhạc chuông trong bộ nhớ mà không bị HyperOS 1 chặn quyền truy cập.',
+      title: t.permissions.audioReadTitle,
+      description: t.permissions.audioReadDesc,
+      detail: t.permissions.audioReadDetail,
       icon: '🎵',
       required: false,
       granted: audioRead,
@@ -132,10 +132,9 @@ export default function PermissionsScreen() {
       ? [
           {
             id: 'exact_alarm',
-            title: 'Báo thức & Lịch chính xác',
-            description: 'Giúp đổi nhạc chuông chuẩn từng phút ngay cả khi tắt màn hình',
-            detail:
-              'Cho phép AlarmManager đánh thức bộ đổi nhạc đúng giờ bắt đầu khung giờ mà không phụ thuộc mạng hay bị trễ.',
+            title: t.permissions.exactAlarmTitle,
+            description: t.permissions.exactAlarmDesc,
+            detail: t.permissions.exactAlarmDetail,
             icon: '⏰',
             required: false,
             granted: exactAlarm,
@@ -148,10 +147,9 @@ export default function PermissionsScreen() {
       : []),
     {
       id: 'battery',
-      title: 'Tắt tối ưu pin (Battery)',
-      description: 'Đặc biệt quan trọng trên MIUI / HyperOS',
-      detail:
-        'HyperOS 1 kiểm soát chạy nền rất gắt. Tắt tối ưu pin giúp bộ hẹn giờ tự động đổi nhạc chuông không bị hệ thống đóng băng.',
+      title: t.permissions.batteryTitle,
+      description: t.permissions.batteryDesc,
+      detail: t.permissions.batteryDetail,
       icon: '🔋',
       required: false,
       granted: batteryExempt,
@@ -173,8 +171,8 @@ export default function PermissionsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={{ fontSize: 22, color: Colors.textPrimary }}>←</Text>
         </TouchableOpacity>
-        <Text style={Typography.h2}>Quyền truy cập</Text>
-        <View style={{ width: 40 }} />
+        <Text style={Typography.h2}>{t.permissions.header}</Text>
+        <LanguageToggleButton />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -188,12 +186,12 @@ export default function PermissionsScreen() {
           <Text style={{ fontSize: 32 }}>{allRequired ? '✅' : '⚠️'}</Text>
           <View style={{ flex: 1, marginLeft: Spacing.md }}>
             <Text style={[Typography.body, { fontWeight: '700' }]}>
-              {allRequired ? 'Quyền bắt buộc đã sẵn sàng' : 'Cần cấp thêm quyền'}
+              {allRequired ? t.permissions.bannerReadyTitle : t.permissions.bannerNeededTitle}
             </Text>
             <Text style={Typography.bodySmall}>
               {allRequired
-                ? 'Trên HyperOS 1+, hãy bật thêm Autostart & Không hạn chế pin bên dưới để chạy ngầm 100% ổn định'
-                : 'Nhấn vào từng mục bên dưới để thiết lập'}
+                ? t.permissions.bannerReadySub
+                : t.permissions.bannerNeededSub}
             </Text>
           </View>
         </View>
@@ -206,39 +204,39 @@ export default function PermissionsScreen() {
         {/* MIUI / HyperOS guide + quick buttons */}
         <GlassCard style={styles.miuiCard}>
           <Text style={[Typography.h3, { marginBottom: 4 }]}>
-            📱 Thiết lập cho Xiaomi / HyperOS 1+
+            {t.permissions.miuiHeader}
           </Text>
           {!!deviceInfo?.osVersionName && (
             <Text style={[Typography.caption, { color: Colors.accent, marginBottom: Spacing.sm }]}>
-              Thiết bị hiện tại: {deviceInfo.manufacturer} {deviceInfo.model} · {deviceInfo.osVersionName} (SDK {deviceInfo.sdkInt})
+              {t.permissions.currentDevicePrefix} {deviceInfo.manufacturer} {deviceInfo.model} · {deviceInfo.osVersionName} (SDK {deviceInfo.sdkInt})
             </Text>
           )}
 
-          <MiuiStep step={1} text="Autostart (Tự khởi chạy) → Bật ON cho AutoRingtone" />
-          <MiuiStep step={2} text="Tiết kiệm pin MIUI/HyperOS → Không hạn chế (No restrictions)" />
-          <MiuiStep step={3} text="Quyền khác → Thay đổi cài đặt hệ thống (Modify system settings) → Cho phép" />
+          <MiuiStep step={1} text={t.permissions.miuiStep1} />
+          <MiuiStep step={2} text={t.permissions.miuiStep2} />
+          <MiuiStep step={3} text={t.permissions.miuiStep3} />
 
           <View style={styles.miuiBtnGroup}>
             <PrimaryButton
-              label="🚀 Mở cài đặt Autostart (HyperOS / MIUI)"
+              label={t.permissions.openAutostartBtn}
               variant="outlined"
               onPress={openMiuiAutostartSettings}
             />
             <View style={{ height: Spacing.xs }} />
             <PrimaryButton
-              label="⚡ Mở Tiết kiệm pin HyperOS / MIUI"
+              label={t.permissions.openBatteryBtn}
               variant="outlined"
               onPress={openMiuiBatterySaverSettings}
             />
           </View>
 
           <Text style={[Typography.caption, { marginTop: Spacing.md, color: Colors.textMuted }]}>
-            * HyperOS 1 quản lý tiến trình nền chặt hơn HyperOS 3. Bật đủ Autostart + Không hạn chế pin giúp lịch tự động hoạt động xuyên suốt kể cả khi khởi động lại máy hoặc tắt mạng.
+            {t.permissions.miuiFootnote}
           </Text>
         </GlassCard>
 
         <TouchableOpacity onPress={checkAll} style={styles.refreshBtn}>
-          <Text style={{ color: Colors.primary }}>↻ Kiểm tra lại quyền</Text>
+          <Text style={{ color: Colors.primary }}>{t.permissions.recheckBtn}</Text>
         </TouchableOpacity>
 
         <View style={{ height: Spacing.xxl }} />
@@ -248,6 +246,7 @@ export default function PermissionsScreen() {
 }
 
 function PermissionCard({ item, onRefresh }: { item: PermissionItem; onRefresh: () => void }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(!item.granted);
 
   const statusColor =
@@ -259,10 +258,10 @@ function PermissionCard({ item, onRefresh }: { item: PermissionItem; onRefresh: 
 
   const statusText =
     item.granted === null
-      ? 'Đang kiểm tra...'
+      ? t.permissions.statusChecking
       : item.granted
-        ? 'Đã cấp quyền'
-        : 'Chưa cấp quyền';
+        ? t.permissions.statusGranted
+        : t.permissions.statusDenied;
 
   return (
     <GlassCard style={styles.permCard}>
@@ -274,7 +273,7 @@ function PermissionCard({ item, onRefresh }: { item: PermissionItem; onRefresh: 
               <Text style={[Typography.body, { fontWeight: '600', flex: 1 }]}>{item.title}</Text>
               {item.required && (
                 <View style={styles.requiredBadge}>
-                  <Text style={styles.requiredText}>BẮT BUỘC</Text>
+                  <Text style={styles.requiredText}>{t.permissions.requiredBadge}</Text>
                 </View>
               )}
             </View>
@@ -297,7 +296,7 @@ function PermissionCard({ item, onRefresh }: { item: PermissionItem; onRefresh: 
           </Text>
           {!item.granted && (
             <PrimaryButton
-              label="Thiết lập quyền này"
+              label={t.permissions.setupPermBtn}
               onPress={async () => {
                 await item.onRequest();
                 setTimeout(onRefresh, 1500);

@@ -13,28 +13,31 @@ import {
   SecurityVerificationReport,
 } from '../../modules/expo-ringtone';
 import { BorderRadius, Colors, Spacing, Typography } from '../theme';
+import { useTranslation } from '../i18n';
+import { LanguageToggleButton } from './ui';
 
 interface SecurityGateScreenProps {
   report: SecurityVerificationReport;
 }
 
-function getReasonDescription(statusCode: number): string {
-  switch (statusCode) {
-    case 2:
-      return 'Ứng dụng chỉ được phép hoạt động trên thiết bị Xiaomi chính hãng đã đăng ký bảo mật.';
-    case 3:
-    case 4:
-      return 'Phát hiện tệp cài đặt APK đã bị can thiệp hoặc chữ ký số không hợp lệ. Toàn bộ tính năng đã bị vô hiệu hóa.';
-    case 5:
-      return 'Phát hiện công cụ dịch ngược / can thiệp tiến trình trái phép. Ứng dụng đã tự động khóa bảo vệ.';
-    case 1:
-    default:
-      return 'Thiết bị Xiaomi này chưa nằm trong danh sách cấp phép sử dụng ứng dụng. Toàn bộ tính năng đã bị khóa.';
-  }
-}
-
 export default function SecurityGateScreen({ report }: SecurityGateScreenProps) {
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
+
+  const getReasonDescription = (statusCode: number): string => {
+    switch (statusCode) {
+      case 2:
+        return t.security.reasonNonXiaomi;
+      case 3:
+      case 4:
+        return t.security.reasonTampered;
+      case 5:
+        return t.security.reasonDebugger;
+      case 1:
+      default:
+        return t.security.reasonUnauthorized;
+    }
+  };
 
   const handleCopyId = () => {
     if (!report.deviceId) return;
@@ -49,25 +52,29 @@ export default function SecurityGateScreen({ report }: SecurityGateScreenProps) 
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#080810" />
 
+      <View style={styles.topLangBar}>
+        <LanguageToggleButton />
+      </View>
+
       <View style={styles.shieldCircle}>
         <Ionicons name="lock-closed" size={44} color={Colors.error} />
       </View>
 
-      <Text style={styles.title}>Thiết bị bị khóa truy cập</Text>
+      <Text style={styles.title}>{t.security.lockedTitle}</Text>
       <Text style={styles.subtitle}>{getReasonDescription(report.statusCode)}</Text>
 
       <View style={styles.infoCard}>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Thiết bị</Text>
+          <Text style={styles.infoLabel}>{t.security.deviceLabel}</Text>
           <Text style={styles.infoValue} numberOfLines={1}>
-            {report.deviceModel || 'Không xác định'}
+            {report.deviceModel || t.common.unknown}
           </Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.idSection}>
-          <Text style={styles.infoLabel}>Mã định danh thiết bị</Text>
+          <Text style={styles.infoLabel}>{t.security.deviceIdLabel}</Text>
           <View style={styles.idBoxRow}>
             <Text selectable style={styles.deviceIdText} numberOfLines={1}>
               {report.deviceId || 'N/A'}
@@ -83,7 +90,9 @@ export default function SecurityGateScreen({ report }: SecurityGateScreenProps) 
                   size={15}
                   color="#FFFFFF"
                 />
-                <Text style={styles.copyBtnText}>{copied ? 'Đã chép' : 'Sao chép'}</Text>
+                <Text style={styles.copyBtnText}>
+                  {copied ? t.security.copiedBtn : t.security.copyBtn}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -95,7 +104,7 @@ export default function SecurityGateScreen({ report }: SecurityGateScreenProps) 
         activeOpacity={0.8}
         style={styles.exitButton}
       >
-        <Text style={styles.exitButtonText}>Đóng ứng dụng</Text>
+        <Text style={styles.exitButtonText}>{t.security.exitBtn}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -108,6 +117,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+  },
+  topLangBar: {
+    position: 'absolute',
+    top: 48,
+    right: Spacing.lg,
   },
   shieldCircle: {
     width: 92,

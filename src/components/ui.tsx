@@ -8,6 +8,26 @@ import {
   Easing,
 } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
+import { useTranslation } from '../i18n';
+
+// ─── Language Toggle Button (VI ⇄ EN) ────────────────────────────────────────
+export function LanguageToggleButton({ style }: { style?: object }) {
+  const { lang, toggleLanguage } = useTranslation();
+  const isVi = lang === 'vi';
+
+  return (
+    <TouchableOpacity
+      onPress={toggleLanguage}
+      activeOpacity={0.75}
+      style={[styles.langToggleBtn, style]}
+      accessibilityRole="button"
+      accessibilityLabel="Switch language Vietnamese / English"
+    >
+      <Text style={styles.langFlag}>{isVi ? '🇻🇳' : '🇬🇧'}</Text>
+      <Text style={styles.langCode}>{isVi ? 'VI' : 'EN'}</Text>
+    </TouchableOpacity>
+  );
+}
 
 // ─── Glass Card ──────────────────────────────────────────────────────────────
 export function GlassCard({
@@ -306,5 +326,26 @@ const styles = StyleSheet.create({
   },
   emptyEmoji: {
     fontSize: 56,
+  },
+  // Language toggle button
+  langToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.bgCardAlt,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 5,
+  },
+  langFlag: {
+    fontSize: 14,
+  },
+  langCode: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: Colors.primaryLight,
+    letterSpacing: 0.6,
   },
 });

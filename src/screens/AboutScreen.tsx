@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Image, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Typography } from '../theme';
-import { GlassCard, SectionHeader } from '../components/ui';
+import { GlassCard, SectionHeader, LanguageToggleButton } from '../components/ui';
 import { APP_NAME, APP_VERSION } from '../appInfo';
+import { useTranslation } from '../i18n';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -15,35 +16,36 @@ interface FeatureItem {
   accent: string;
 }
 
-const FEATURES: FeatureItem[] = [
-  {
-    icon: 'time',
-    title: 'Đổi nhạc chuông theo khung giờ',
-    desc: 'Tạo linh hoạt các khung giờ trong ngày (sáng, trưa, tối...). Mỗi khung giờ có danh sách bài hát riêng và tự động đảo nhạc ngẫu nhiên.',
-    accent: Colors.primary,
-  },
-  {
-    icon: 'notifications',
-    title: 'Âm thông báo & tin nhắn SMS',
-    desc: 'Tuỳ biến âm báo tin nhắn và thông báo Android riêng biệt, tương thích sâu với cả 2 SIM trên hệ điều hành Xiaomi HyperOS.',
-    accent: Colors.accentGreen,
-  },
-  {
-    icon: 'infinite',
-    title: 'Hoạt động nền bền bỉ',
-    desc: 'Tích hợp bộ lập lịch phần cứng (AlarmManager), tự động phục hồi ngay khi khởi động lại máy mà không lo bị hệ thống dọn dẹp bộ nhớ tắt ngầm.',
-    accent: Colors.accentOrange,
-  },
-  {
-    icon: 'shield-checkmark',
-    title: 'Bảo mật chuyên biệt thiết bị',
-    desc: 'Bảo vệ thiết bị bằng chữ ký mã hoá C++ JNI Native và whitelist số serial, chống can thiệp hoặc sửa đổi ứng dụng.',
-    accent: Colors.accent,
-  },
-];
-
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
+  const { lang, t, setLanguage } = useTranslation();
+
+  const features: FeatureItem[] = [
+    {
+      icon: 'time',
+      title: t.about.f1Title,
+      desc: t.about.f1Desc,
+      accent: Colors.primary,
+    },
+    {
+      icon: 'notifications',
+      title: t.about.f2Title,
+      desc: t.about.f2Desc,
+      accent: Colors.accentGreen,
+    },
+    {
+      icon: 'infinite',
+      title: t.about.f3Title,
+      desc: t.about.f3Desc,
+      accent: Colors.accentOrange,
+    },
+    {
+      icon: 'shield-checkmark',
+      title: t.about.f4Title,
+      desc: t.about.f4Desc,
+      accent: Colors.accent,
+    },
+  ];
 
   return (
     <View style={styles.container}>
@@ -58,6 +60,11 @@ export default function AboutScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Quick Language Toggle Bar ── */}
+        <View style={styles.topBar}>
+          <LanguageToggleButton />
+        </View>
+
         {/* ── App Hero Header ── */}
         <View style={styles.hero}>
           <View style={styles.logoWrapper}>
@@ -69,30 +76,59 @@ export default function AboutScreen() {
           </View>
           <Text style={styles.appName}>{APP_NAME}</Text>
           <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>Phiên bản {APP_VERSION}</Text>
+            <Text style={styles.versionText}>{t.common.version(APP_VERSION)}</Text>
           </View>
           <Text style={styles.heroTagline}>
-            Tự động đổi nhạc chuông &amp; âm báo thông minh dành riêng cho Xiaomi HyperOS
+            {t.about.heroTagline}
           </Text>
         </View>
 
+        {/* ── Language Switcher Card ── */}
+        <SectionHeader title={t.about.langSectionTitle} subtitle={t.about.langSectionSub} />
+        <GlassCard style={styles.card}>
+          <View style={styles.langSwitchRow}>
+            <TouchableOpacity
+              onPress={() => setLanguage('vi')}
+              activeOpacity={0.8}
+              style={[styles.langOptionBtn, lang === 'vi' && styles.langOptionBtnActive]}
+            >
+              <Text style={styles.langFlag}>🇻🇳</Text>
+              <Text style={[styles.langOptionText, lang === 'vi' && styles.langOptionTextActive]}>
+                Tiếng Việt
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setLanguage('en')}
+              activeOpacity={0.8}
+              style={[styles.langOptionBtn, lang === 'en' && styles.langOptionBtnActive]}
+            >
+              <Text style={styles.langFlag}>🇬🇧</Text>
+              <Text style={[styles.langOptionText, lang === 'en' && styles.langOptionTextActive]}>
+                English
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </GlassCard>
+
         {/* ── Tổng quát & Thông tin chung ── */}
-        <SectionHeader title="Thông tin chung" subtitle="Mục đích và giải pháp" />
+        <SectionHeader title={t.about.generalTitle} subtitle={t.about.generalSub} />
         <GlassCard style={styles.card}>
           <Text style={styles.paragraph}>
-            <Text style={styles.boldText}>{APP_NAME}</Text> ra đời nhằm giải quyết sự nhàm chán khi điện thoại chỉ phát duy nhất một đoạn chuông lặp đi lặp lại.
+            <Text style={styles.boldText}>{APP_NAME}</Text>
+            {t.about.generalP1Rest}
           </Text>
           <Text style={[styles.paragraph, { marginTop: Spacing.sm }]}>
-            Ứng dụng cho phép bạn gán từng bài hát yêu thích theo từng khoảng thời gian sinh hoạt trong ngày (giờ làm việc, giờ nghỉ ngơi, giờ tập luyện), tự động chọn ngẫu nhiên các bài hát trong danh sách và tương thích hoàn hảo từ cuộc gọi SIM thường đến các ứng dụng gọi phổ biến như Zalo, Messenger.
+            {t.about.generalP2}
           </Text>
         </GlassCard>
 
         {/* ── Tính năng nổi bật ── */}
-        <SectionHeader title="Tính năng nổi bật" subtitle="Trải nghiệm mượt mà & tối ưu" />
+        <SectionHeader title={t.about.featuresTitle} subtitle={t.about.featuresSub} />
         <GlassCard style={styles.card}>
-          {FEATURES.map((item, index) => (
+          {features.map((item, index) => (
             <View
-              key={item.title}
+              key={item.icon}
               style={[styles.featureItem, index > 0 && styles.featureBorder]}
             >
               <View style={[styles.featureIconWrap, { backgroundColor: `${item.accent}20` }]}>
@@ -107,7 +143,7 @@ export default function AboutScreen() {
         </GlassCard>
 
         {/* ── Người lên ý tưởng & Thực hiện ── */}
-        <SectionHeader title="Đội ngũ phát triển" subtitle="Ý tưởng & thực hiện dự án" />
+        <SectionHeader title={t.about.teamTitle} subtitle={t.about.teamSub} />
         <GlassCard style={styles.card}>
           <View style={styles.devRow}>
             <View style={styles.avatarPqt}>
@@ -115,7 +151,7 @@ export default function AboutScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.devName}>pqt123</Text>
-              <Text style={styles.devRole}>Lên ý tưởng, Thiết kế &amp; Trực tiếp thực hiện</Text>
+              <Text style={styles.devRole}>{t.about.pqtRole}</Text>
             </View>
           </View>
 
@@ -127,7 +163,7 @@ export default function AboutScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.devName}>Gemini 4 Argon</Text>
-              <Text style={styles.devRole}>Đồng hành kiến tạo kiến trúc &amp; Hỗ trợ lập trình</Text>
+              <Text style={styles.devRole}>{t.about.geminiRole}</Text>
             </View>
           </View>
         </GlassCard>
@@ -135,7 +171,7 @@ export default function AboutScreen() {
         {/* ── Footer ── */}
         <View style={styles.footerWrap}>
           <Text style={styles.footerText}>
-            Thiết kế &amp; xây dựng với tất cả tâm huyết
+            {t.about.footerText}
           </Text>
           <Text style={styles.footerHighlight}>
             pqt123  ✕  Gemini 4 Argon
@@ -154,10 +190,15 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.md,
   },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: Spacing.xs,
+  },
   hero: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
   },
   logoWrapper: {
     width: 110,
@@ -209,6 +250,39 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: Spacing.lg,
+  },
+  langSwitchRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  langOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.bgCardAlt,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  langOptionBtnActive: {
+    backgroundColor: 'rgba(108, 99, 255, 0.2)',
+    borderColor: Colors.primary,
+  },
+  langFlag: {
+    fontSize: 16,
+  },
+  langOptionText: {
+    ...Typography.body,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  langOptionTextActive: {
+    color: Colors.textPrimary,
+    fontWeight: '700',
   },
   paragraph: {
     ...Typography.body,

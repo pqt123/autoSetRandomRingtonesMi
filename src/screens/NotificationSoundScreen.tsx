@@ -21,7 +21,9 @@ import {
   PrimaryButton,
   SectionHeader,
   EmptyState,
+  LanguageToggleButton,
 } from '../components/ui';
+import { useTranslation } from '../i18n';
 import {
   checkWriteSettingsPermission,
   getCurrentNotificationSound,
@@ -37,25 +39,8 @@ import { RingtoneInfo } from '../types';
 const SAVED_NOTIF_TONES_KEY = '@autoringtone_notif_tones';
 const NOTIF_MODE_KEY = '@autoringtone_notif_apply_mode';
 
-const APPLY_MODES: { id: NotificationApplyMode; label: string; desc: string }[] = [
-  {
-    id: 'both',
-    label: '🔔 + 💬 Cả hai',
-    desc: 'Áp dụng cho cả âm thông báo mặc định Android & chuông tin nhắn SMS (hỗ trợ cả 2 SIM trên Xiaomi/HyperOS).',
-  },
-  {
-    id: 'notification',
-    label: '🔔 Thông báo',
-    desc: 'Chỉ thay đổi âm thông báo mặc định của hệ thống Android.',
-  },
-  {
-    id: 'sms',
-    label: '💬 Tin nhắn SMS',
-    desc: 'Ưu tiên đổi chuông tin nhắn SMS trên Xiaomi/HyperOS (trên Android thuần dùng chung âm thông báo).',
-  },
-];
-
 export default function NotificationSoundScreen() {
+  const { t } = useTranslation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [currentSound, setCurrentSound] = useState<RingtoneInfo | null>(null);
   const [savedTones, setSavedTones] = useState<RingtoneInfo[]>([]);
@@ -68,6 +53,24 @@ export default function NotificationSoundScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
+
+  const APPLY_MODES: { id: NotificationApplyMode; label: string; desc: string }[] = [
+    {
+      id: 'both',
+      label: t.notification.modeBothLabel,
+      desc: t.notification.modeBothDesc,
+    },
+    {
+      id: 'notification',
+      label: t.notification.modeNotifLabel,
+      desc: t.notification.modeNotifDesc,
+    },
+    {
+      id: 'sms',
+      label: t.notification.modeSmsLabel,
+      desc: t.notification.modeSmsDesc,
+    },
+  ];
 
   useEffect(() => {
     Animated.timing(headerAnim, {
@@ -149,11 +152,11 @@ export default function NotificationSoundScreen() {
     setHasPermission(perm);
     if (!perm) {
       Alert.alert(
-        'Yêu cầu quyền',
-        'Ứng dụng cần quyền thay đổi cài đặt hệ thống (Modify system settings) để đổi chuông thông báo / tin nhắn.',
+        t.home.alertPermTitle,
+        t.notification.alertPermMsg,
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Thiết lập', onPress: () => router.push('/permissions') },
+          { text: t.common.cancel, style: 'cancel' },
+          { text: t.common.setup, onPress: () => router.push('/permissions') },
         ]
       );
       return false;
@@ -171,7 +174,7 @@ export default function NotificationSoundScreen() {
       setPlayingUri(uri);
     } else {
       setPlayingUri(null);
-      Alert.alert('Không thể phát', 'Không đọc được file âm thanh này để nghe thử.');
+      Alert.alert(t.notification.alertCannotPlayTitle, t.notification.alertCannotPlayMsg);
     }
   };
 
@@ -193,20 +196,23 @@ export default function NotificationSoundScreen() {
         if (showAlert) {
           const targetText =
             applyMode === 'both'
-              ? 'Thông báo & Tin nhắn SMS'
+              ? t.notification.targetBoth
               : applyMode === 'sms'
-                ? 'Tin nhắn SMS'
-                : 'Thông báo hệ thống';
-          Alert.alert('Đã áp dụng', `Đã đặt âm báo (${targetText}):\n🔔 ${tone.title}`);
+                ? t.notification.targetSms
+                : t.notification.targetNotif;
+          Alert.alert(
+            t.notification.alertAppliedTitle,
+            t.notification.alertAppliedMsg(targetText, tone.title)
+          );
         }
       } else {
         Alert.alert(
-          'Thất bại',
-          'Không thể cập nhật âm thông báo. Vui lòng kiểm tra quyền truy cập hoặc chọn lại file âm thanh.'
+          t.common.failedTitle,
+          t.notification.alertApplyFailedMsg
         );
       }
     } catch (e: any) {
-      Alert.alert('Lỗi', `Có lỗi xảy ra: ${e?.message || e}`);
+      Alert.alert(t.common.errorTitle, t.home.alertErrorMsg(String(e?.message || e)));
     } finally {
       setApplyingUri(null);
     }
@@ -239,14 +245,14 @@ export default function NotificationSoundScreen() {
       };
 
       // Lưu luôn vào danh sách của tôi để lần sau chọn lại 1 chạm
-      const exists = savedTones.some(t => t.uri === newTone.uri || t.title === newTone.title);
+      const exists = savedTones.some(tr => tr.uri === newTone.uri || tr.title === newTone.title);
       if (!exists) {
         await saveUpdatedTones([newTone, ...savedTones]);
       }
 
       await applyNotificationTone(newTone, true);
     } catch {
-      Alert.alert('Lỗi', 'Không thể chọn file âm báo từ bộ nhớ.');
+      Alert.alert(t.common.errorTitle, t.notification.alertPickFileErr);
     }
   };
 
@@ -271,33 +277,33 @@ export default function NotificationSoundScreen() {
         })
       );
 
-      const existingUris = new Set(savedTones.map(t => t.uri));
-      const unique = imported.filter(t => !existingUris.has(t.uri));
+      const existingUris = new Set(savedTones.map(tr => tr.uri));
+      const unique = imported.filter(tr => !existingUris.has(tr.uri));
       if (unique.length > 0) {
         await saveUpdatedTones([...unique, ...savedTones]);
       }
     } catch {
-      Alert.alert('Lỗi', 'Không thể thêm file âm thanh vào thư viện.');
+      Alert.alert(t.common.errorTitle, t.notification.alertAddLibErr);
     }
   };
 
   const handleRemoveSavedTone = (uri: string) => {
     if (playingUri === uri) handleStopPreview();
-    const next = savedTones.filter(t => t.uri !== uri);
+    const next = savedTones.filter(tr => tr.uri !== uri);
     saveUpdatedTones(next);
   };
 
   const handleRandomNotificationTone = async () => {
     if (savedTones.length === 0) {
       Alert.alert(
-        'Chưa có âm báo',
-        'Hãy thêm ít nhất 1 file âm báo vào "Thư viện âm báo của tôi" trước khi Random.'
+        t.notification.alertEmptyRandomTitle,
+        t.notification.alertEmptyRandomMsg
       );
       return;
     }
     let pool = savedTones;
     if (pool.length > 1 && currentSound?.title) {
-      const filtered = pool.filter(t => t.title !== currentSound.title);
+      const filtered = pool.filter(tr => tr.title !== currentSound.title);
       if (filtered.length > 0) pool = filtered;
     }
     const chosen = pool[Math.floor(Math.random() * pool.length)];
@@ -324,10 +330,15 @@ export default function NotificationSoundScreen() {
   };
 
   const filteredSystemTones = systemSearch.trim()
-    ? systemTones.filter(t => t.title.toLowerCase().includes(systemSearch.trim().toLowerCase()))
+    ? systemTones.filter(tr => tr.title.toLowerCase().includes(systemSearch.trim().toLowerCase()))
     : systemTones;
 
   const activeModeInfo = APPLY_MODES.find(m => m.id === applyMode) ?? APPLY_MODES[0];
+
+  const displayCurrentSoundTitle =
+    currentSound?.title === 'Âm báo hệ thống'
+      ? t.notification.systemNotifDefault
+      : (currentSound?.title ?? t.common.unknown);
 
   return (
     <View style={styles.container}>
@@ -360,21 +371,24 @@ export default function NotificationSoundScreen() {
             },
           ]}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={Typography.h1}>Âm thông báo</Text>
+          <View style={{ flex: 1, paddingRight: Spacing.sm }}>
+            <Text style={Typography.h1}>{t.notification.title}</Text>
             <Text style={[Typography.bodySmall, { marginTop: 2 }]}>
-              Đổi chuông tin nhắn SMS & thông báo ngay trong app
+              {t.notification.subtitle}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => {
-              handleStopPreview();
-              router.push('/permissions');
-            }}
-            style={styles.settingsBtn}
-          >
-            <Text style={{ fontSize: 22 }}>⚙️</Text>
-          </TouchableOpacity>
+          <View style={styles.headerTopActions}>
+            <LanguageToggleButton />
+            <TouchableOpacity
+              onPress={() => {
+                handleStopPreview();
+                router.push('/permissions');
+              }}
+              style={styles.settingsBtn}
+            >
+              <Text style={{ fontSize: 22 }}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* ── Permission Warning ── */}
@@ -389,9 +403,11 @@ export default function NotificationSoundScreen() {
             <View style={styles.warningCard}>
               <Text style={{ fontSize: 20 }}>⚠️</Text>
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-                <Text style={[Typography.body, { fontWeight: '600' }]}>Chưa cấp quyền hệ thống</Text>
+                <Text style={[Typography.body, { fontWeight: '600' }]}>
+                  {t.notification.permWarningTitle}
+                </Text>
                 <Text style={Typography.bodySmall}>
-                  Nhấn để bật quyền sửa cài đặt hệ thống trước khi đổi âm báo
+                  {t.notification.permWarningSub}
                 </Text>
               </View>
               <Text style={{ color: Colors.textSecondary }}>›</Text>
@@ -402,7 +418,7 @@ export default function NotificationSoundScreen() {
         {/* ── Current Notification Sound ── */}
         <GlassCard style={styles.card}>
           <SectionHeader
-            title="Âm báo đang dùng"
+            title={t.notification.currentHeader}
             action={
               <View style={styles.headerActions}>
                 {currentSound?.uri ? (
@@ -411,12 +427,14 @@ export default function NotificationSoundScreen() {
                     style={styles.previewCurrentBtn}
                   >
                     <Text style={styles.previewCurrentText}>
-                      {playingUri === currentSound.uri ? '⏹ Dừng' : '🔊 Nghe'}
+                      {playingUri === currentSound.uri
+                        ? t.notification.stopBtn
+                        : t.notification.previewBtn}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity onPress={handleRandomNotificationTone} style={styles.randomBtn}>
-                  <Text style={styles.randomBtnText}>🎲 Random</Text>
+                  <Text style={styles.randomBtnText}>{t.notification.randomBtn}</Text>
                 </TouchableOpacity>
               </View>
             }
@@ -425,10 +443,10 @@ export default function NotificationSoundScreen() {
             <Text style={{ fontSize: 32 }}>🔔</Text>
             <View style={{ flex: 1, marginLeft: Spacing.md }}>
               <Text style={[Typography.body, { fontWeight: '600' }]} numberOfLines={1}>
-                {currentSound?.title ?? 'Không xác định'}
+                {displayCurrentSoundTitle}
               </Text>
               <Text style={Typography.bodySmall} numberOfLines={1}>
-                {currentSound?.uri ? 'Đang áp dụng trên thiết bị' : 'Chưa thiết lập'}
+                {currentSound?.uri ? t.notification.activeOnDeviceSub : t.common.notSet}
               </Text>
             </View>
           </View>
@@ -436,7 +454,7 @@ export default function NotificationSoundScreen() {
 
         {/* ── Target Mode Selector ── */}
         <GlassCard style={styles.card}>
-          <SectionHeader title="Phạm vi áp dụng" />
+          <SectionHeader title={t.notification.scopeHeader} />
           <View style={styles.modeRow}>
             {APPLY_MODES.map(mode => {
               const selected = applyMode === mode.id;
@@ -461,17 +479,17 @@ export default function NotificationSoundScreen() {
         {/* ── Pick & Saved Library ── */}
         <GlassCard style={styles.card}>
           <SectionHeader
-            title={`Thư viện âm báo của tôi (${savedTones.length})`}
-            subtitle="Chọn file mp3 / m4a / ogg / wav từ máy"
+            title={t.notification.libraryHeader(savedTones.length)}
+            subtitle={t.notification.librarySub}
           />
 
           <PrimaryButton
-            label="⚡ Chọn file từ máy & Đặt ngay"
+            label={t.notification.pickAndApplyBtn}
             onPress={handlePickAndApplyNow}
             style={{ marginTop: Spacing.xs }}
           />
           <PrimaryButton
-            label="＋ Thêm nhiều âm báo vào thư viện"
+            label={t.notification.addMultipleBtn}
             onPress={handleAddMultipleToLibrary}
             variant="outlined"
             style={{ marginTop: Spacing.sm, marginBottom: Spacing.md }}
@@ -480,8 +498,8 @@ export default function NotificationSoundScreen() {
           {savedTones.length === 0 ? (
             <EmptyState
               emoji="💬"
-              title="Chưa có âm báo riêng"
-              subtitle="Nhấn nút ở trên để chọn âm báo tin nhắn / thông báo yêu thích từ bộ nhớ máy"
+              title={t.notification.emptyLibraryTitle}
+              subtitle={t.notification.emptyLibrarySub}
             />
           ) : (
             savedTones.map(tone => {
@@ -512,9 +530,9 @@ export default function NotificationSoundScreen() {
             style={styles.systemHeaderBtn}
           >
             <View style={{ flex: 1 }}>
-              <Text style={Typography.h3}>📱 Âm báo có sẵn trên máy</Text>
+              <Text style={Typography.h3}>{t.notification.systemTonesTitle}</Text>
               <Text style={[Typography.bodySmall, { marginTop: 2 }]}>
-                Chọn nhanh chuông mặc định của hệ thống (không qua app Chủ đề)
+                {t.notification.systemTonesSub}
               </Text>
             </View>
             <Text style={{ color: Colors.textSecondary, fontSize: 16, marginLeft: Spacing.sm }}>
@@ -528,13 +546,13 @@ export default function NotificationSoundScreen() {
                 style={styles.searchInput}
                 value={systemSearch}
                 onChangeText={setSystemSearch}
-                placeholder="Tìm âm báo hệ thống..."
+                placeholder={t.notification.searchPlaceholder}
                 placeholderTextColor={Colors.textMuted}
               />
 
               {filteredSystemTones.length === 0 ? (
                 <Text style={[Typography.bodySmall, { textAlign: 'center', paddingVertical: Spacing.md }]}>
-                  Không tìm thấy âm báo phù hợp
+                  {t.notification.noMatchingTones}
                 </Text>
               ) : (
                 filteredSystemTones.map(tone => {
@@ -560,7 +578,7 @@ export default function NotificationSoundScreen() {
 
         {/* ── Info tip ── */}
         <Text style={styles.footerTip}>
-          💡 Mẹo: Âm báo này áp dụng cho Tin nhắn SMS và mọi ứng dụng dùng "Âm thông báo mặc định". Với các app có nhạc riêng (như Messenger/Zalo), hãy chọn "Âm mặc định hệ thống" trong cài đặt thông báo của app đó nếu muốn đồng bộ.
+          {t.notification.footerTip}
         </Text>
 
         <View style={{ height: Spacing.xxl }} />
@@ -586,6 +604,8 @@ function ToneItemRow({
   onApply: () => void;
   onDelete?: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <View style={[styles.toneRow, active && styles.toneRowActive]}>
       <TouchableOpacity
@@ -602,7 +622,7 @@ function ToneItemRow({
           </Text>
           {active && (
             <View style={styles.activePill}>
-              <Text style={styles.activePillText}>Đang dùng</Text>
+              <Text style={styles.activePillText}>{t.notification.inUsePill}</Text>
             </View>
           )}
         </View>
@@ -614,7 +634,7 @@ function ToneItemRow({
         style={[styles.applyChip, active && styles.applyChipActive]}
       >
         <Text style={[styles.applyChipText, active && styles.applyChipTextActive]}>
-          {isApplying ? '...' : active ? '✓ Đã đặt' : 'Đặt'}
+          {isApplying ? '...' : active ? t.notification.appliedChip : t.notification.applyChip}
         </Text>
       </TouchableOpacity>
 
@@ -635,6 +655,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.lg,
+  },
+  headerTopActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   settingsBtn: {
     padding: Spacing.sm,
@@ -813,4 +838,3 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
 });
-

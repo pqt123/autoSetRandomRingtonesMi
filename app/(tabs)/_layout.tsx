@@ -3,9 +3,11 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../src/theme';
+import { useTranslation } from '../../src/i18n';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const bottomPadding = Math.max(insets.bottom, 8);
 
   return (
@@ -33,7 +35,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Nhạc chuông',
+          title: t.tabs.ringtone,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
               name={focused ? 'call' : 'call-outline'}
@@ -46,7 +48,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="notification"
         options={{
-          title: 'Âm thông báo',
+          title: t.tabs.notification,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
               name={focused ? 'notifications' : 'notifications-outline'}
@@ -59,7 +61,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="about"
         options={{
-          title: 'Giới thiệu',
+          title: t.tabs.about,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
               name={focused ? 'information-circle' : 'information-circle-outline'}

@@ -20,8 +20,10 @@ import {
   EmptyState,
   TimeBadge,
   SectionHeader,
+  LanguageToggleButton,
 } from '../components/ui';
 import { useStore } from '../store/useStore';
+import { useTranslation } from '../i18n';
 import {
   checkWriteSettingsPermission,
   getCurrentRingtone,
@@ -45,6 +47,7 @@ function getActiveSlot(slots: TimeSlot[]): TimeSlot | null {
 
 export default function HomeScreen() {
   const { slots, schedulerEnabled, currentRingtone, toggleScheduler, toggleSlot, loadFromStorage, setCurrentRingtone } = useStore();
+  const { t } = useTranslation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [hasBatteryExemption, setHasBatteryExemption] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,11 +105,11 @@ export default function HomeScreen() {
     const hasPerm = await checkWriteSettingsPermission();
     if (!hasPerm) {
       Alert.alert(
-        'Yêu cầu quyền',
-        'Ứng dụng cần quyền thay đổi cài đặt hệ thống (WRITE_SETTINGS) để đặt nhạc chuông. Bạn có muốn chuyển sang màn hình thiết lập không?',
+        t.home.alertPermTitle,
+        t.home.alertPermMsg,
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Thiết lập', onPress: () => router.push('/permissions') },
+          { text: t.common.cancel, style: 'cancel' },
+          { text: t.common.setup, onPress: () => router.push('/permissions') },
         ]
       );
       return;
@@ -123,8 +126,8 @@ export default function HomeScreen() {
 
     if (!targetSlot || targetSlot.playlist.length === 0) {
       Alert.alert(
-        'Không thể test',
-        'Vui lòng tạo/bật ít nhất một khung giờ có chứa các bài hát trong playlist trước khi thực hiện test.'
+        t.home.alertCannotTestTitle,
+        t.home.alertCannotTestMsg
       );
       return;
     }
@@ -151,21 +154,26 @@ export default function HomeScreen() {
         }
         
         Alert.alert(
-          'Thành công',
-          `Đã thay đổi nhạc chuông ngẫu nhiên từ khung giờ "${targetSlot.label}"${isCurrentlyActive ? ' (Đang active)' : ' (Test)'} thành:\n🎵 ${chosenSong.title}`
+          t.common.successTitle,
+          t.home.alertTestSuccessMsg(targetSlot.label, isCurrentlyActive, chosenSong.title)
         );
       } else {
         console.warn('[HomeScreen Test] setSystemRingtone returned false');
         Alert.alert(
-          'Thất bại',
-          'Không thể ghi đè nhạc chuông. Vui lòng kiểm tra lại quyền truy cập hoặc file nhạc.'
+          t.common.failedTitle,
+          t.home.alertTestFailedMsg
         );
       }
     } catch (e: any) {
       console.error('[HomeScreen Test] Error setting ringtone:', e);
-      Alert.alert('Lỗi', `Có lỗi xảy ra: ${e?.message || e}`);
+      Alert.alert(t.common.errorTitle, t.home.alertErrorMsg(String(e?.message || e)));
     }
   };
+
+  const displayRingtoneTitle =
+    currentRingtone?.title === 'Nhạc chuông hệ thống'
+      ? t.home.systemRingtoneDefault
+      : (currentRingtone?.title ?? t.common.unknown);
 
   return (
     <View style={styles.container}>
@@ -183,18 +191,21 @@ export default function HomeScreen() {
       >
         {/* ── Header ── */}
         <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
-          <View>
+          <View style={{ flex: 1, paddingRight: Spacing.sm }}>
             <Text style={Typography.h1}>AutoRingtone</Text>
             <Text style={[Typography.bodySmall, { marginTop: 2 }]}>
-              Tự động đổi nhạc chuông theo khung giờ
+              {t.home.subtitle}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('/permissions')}
-            style={styles.settingsBtn}
-          >
-            <Text style={{ fontSize: 22 }}>⚙️</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <LanguageToggleButton />
+            <TouchableOpacity
+              onPress={() => router.push('/permissions')}
+              style={styles.settingsBtn}
+            >
+              <Text style={{ fontSize: 22 }}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* ── Permission Warning ── */}
@@ -204,10 +215,10 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 20 }}>⚠️</Text>
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                 <Text style={[Typography.body, { fontWeight: '600' }]}>
-                  Chưa cấp quyền
+                  {t.home.permWarningTitle}
                 </Text>
                 <Text style={Typography.bodySmall}>
-                  Nhấn để thiết lập quyền cần thiết
+                  {t.home.permWarningSub}
                 </Text>
               </View>
               <Text style={{ color: Colors.textSecondary }}>›</Text>
@@ -219,13 +230,13 @@ export default function HomeScreen() {
         <GlassCard style={styles.schedulerCard}>
           <View style={styles.schedulerRow}>
             <View>
-              <Text style={Typography.h3}>Lên lịch tự động</Text>
+              <Text style={Typography.h3}>{t.home.schedulerTitle}</Text>
               <View style={styles.statusRow}>
                 {schedulerEnabled && <PulseDot color={Colors.success} />}
                 <Text style={[Typography.bodySmall, { marginLeft: schedulerEnabled ? 6 : 0 }]}>
-                  {schedulerEnabled ? 'Đang chạy' : 'Đã tắt'}
+                  {schedulerEnabled ? t.home.schedulerRunning : t.home.schedulerStopped}
                   {schedulerEnabled && enabledSlots.length > 0
-                    ? ` · ${enabledSlots.length} slot active`
+                    ? t.home.activeSlotsCount(enabledSlots.length)
                     : ''}
                 </Text>
               </View>
@@ -241,7 +252,7 @@ export default function HomeScreen() {
             <View style={styles.activeSlotBadge}>
               <View style={[styles.activeSlotDot, { backgroundColor: activeSlot.color }]} />
               <Text style={Typography.bodySmall}>
-                Slot đang chạy:{' '}
+                {t.home.activeSlotPrefix}
                 <Text style={{ color: activeSlot.color, fontWeight: '600' }}>
                   {activeSlot.label}
                 </Text>
@@ -254,13 +265,13 @@ export default function HomeScreen() {
         {/* ── Current Ringtone ── */}
         <GlassCard style={styles.ringtoneCard}>
           <SectionHeader
-            title="Nhạc chuông hiện tại"
+            title={t.home.currentRingtoneHeader}
             action={
               <TouchableOpacity
                 onPress={handleTestRandomRingtone}
                 style={styles.testBtn}
               >
-                <Text style={styles.testBtnText}>🎲 Test Random</Text>
+                <Text style={styles.testBtnText}>{t.home.testRandomBtn}</Text>
               </TouchableOpacity>
             }
           />
@@ -268,10 +279,10 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 32 }}>🎵</Text>
             <View style={{ flex: 1, marginLeft: Spacing.md }}>
               <Text style={Typography.body} numberOfLines={1}>
-                {currentRingtone?.title ?? 'Không xác định'}
+                {displayRingtoneTitle}
               </Text>
               <Text style={Typography.bodySmall} numberOfLines={1}>
-                {currentRingtone?.uri ? 'File âm thanh' : 'Chưa thiết lập'}
+                {currentRingtone?.uri ? t.home.audioFileSub : t.common.notSet}
               </Text>
             </View>
           </View>
@@ -280,13 +291,13 @@ export default function HomeScreen() {
         {/* ── Time Slots ── */}
         <View style={styles.slotsSection}>
           <SectionHeader
-            title={`Khung giờ (${slots.length})`}
+            title={t.home.slotsHeader(slots.length)}
             action={
               <TouchableOpacity
                 onPress={() => router.push('/add-slot')}
                 style={styles.addBtn}
               >
-                <Text style={styles.addBtnText}>＋ Thêm</Text>
+                <Text style={styles.addBtnText}>{t.home.addBtn}</Text>
               </TouchableOpacity>
             }
           />
@@ -294,8 +305,8 @@ export default function HomeScreen() {
           {slots.length === 0 ? (
             <EmptyState
               emoji="🕐"
-              title="Chưa có khung giờ nào"
-              subtitle="Nhấn '+ Thêm' để tạo khung giờ đầu tiên với playlist nhạc riêng"
+              title={t.home.emptySlotsTitle}
+              subtitle={t.home.emptySlotsSub}
             />
           ) : (
             slots.map((slot) => (
@@ -313,7 +324,7 @@ export default function HomeScreen() {
         {/* ── Dev Tools ── */}
         {__DEV__ && (
           <TouchableOpacity onPress={triggerTaskForTesting} style={styles.devBtn}>
-            <Text style={styles.devBtnText}>🛠 [DEV] Trigger Task ngay</Text>
+            <Text style={styles.devBtnText}>{t.home.devTriggerBtn}</Text>
           </TouchableOpacity>
         )}
 
@@ -335,6 +346,8 @@ function SlotCard({
   onToggle: () => void;
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
       <View style={[styles.slotCard, isActive && styles.slotCardActive]}>
@@ -354,7 +367,9 @@ function SlotCard({
                 {isActive && (
                   <View style={styles.activeLabel}>
                     <PulseDot color={slot.color} />
-                    <Text style={[Typography.caption, { marginLeft: 4, color: slot.color }]}>Active</Text>
+                    <Text style={[Typography.caption, { marginLeft: 4, color: slot.color }]}>
+                      {t.home.slotActiveBadge}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -366,19 +381,19 @@ function SlotCard({
             {(() => {
               const autoRotate = slot.autoRotate !== false;
               const interval = autoRotate ? (slot.changeIntervalMinutes ?? 60) : 0;
-              let intervalText = '🔄 Đổi mỗi 1 tiếng';
+              let intervalText: string = t.home.intervalOneHour;
               if (!autoRotate || interval === 0) {
-                intervalText = '⏱ Chỉ 1 lần/khung giờ';
+                intervalText = t.home.intervalOnce;
               } else if (interval === 60) {
-                intervalText = '🔄 Đổi mỗi 1 tiếng';
+                intervalText = t.home.intervalOneHour;
               } else if (interval >= 60 && interval % 60 === 0) {
-                intervalText = `🔄 Đổi mỗi ${interval / 60} tiếng`;
+                intervalText = t.home.intervalHours(interval / 60);
               } else {
-                intervalText = `🔄 Đổi mỗi ${interval} phút`;
+                intervalText = t.home.intervalMinutes(interval);
               }
               return (
                 <Text style={Typography.bodySmall}>
-                  🎵 {slot.playlist.length} bài · {intervalText}
+                  {t.home.slotSummary(slot.playlist.length, intervalText)}
                 </Text>
               );
             })()}
@@ -398,6 +413,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.lg,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   settingsBtn: {
     padding: Spacing.sm,
