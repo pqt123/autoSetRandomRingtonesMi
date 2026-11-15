@@ -17,6 +17,14 @@ export interface NativeLastSetRecord {
   timestamp: number;
 }
 
+export interface PostCallRotateStatus {
+  enabled: boolean;
+  delayMinutes: number;
+  pendingRotateAtMs: number;
+  lastCallDetectedAtMs: number;
+  lastCallSource: string;
+}
+
 export interface DeviceSystemInfo {
   isXiaomi: boolean;
   osVersionName: string;
@@ -149,6 +157,41 @@ export async function syncNativeSchedule(
 export async function getNativeLastSet(): Promise<NativeLastSetRecord | null> {
   if (Platform.OS !== 'android') return null;
   return ExpoRingtone.getNativeLastSet();
+}
+
+/**
+ * Lấy trạng thái cấu hình tự động đổi nhạc chuông sau cuộc gọi đến (2 phút)
+ */
+export async function getPostCallRotateConfig(): Promise<PostCallRotateStatus | null> {
+  if (Platform.OS !== 'android') return null;
+  return ExpoRingtone.getPostCallRotateConfig();
+}
+
+/**
+ * Bật / tắt hoặc chỉnh số phút chờ đổi nhạc chuông sau khi phát hiện cuộc gọi đến (SIM, Zalo, Messenger, Telegram)
+ */
+export async function setPostCallRotateConfig(
+  enabled: boolean,
+  delayMinutes: number = 2
+): Promise<PostCallRotateStatus | null> {
+  if (Platform.OS !== 'android') return null;
+  return ExpoRingtone.setPostCallRotateConfig(enabled, delayMinutes);
+}
+
+/**
+ * Kiểm tra quyền lắng nghe thông báo (Notification Listener) để nhận diện cuộc gọi Zalo / Messenger / Telegram
+ */
+export async function checkNotificationListenerPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  return ExpoRingtone.checkNotificationListenerPermission();
+}
+
+/**
+ * Mở cài đặt cấp quyền Notification Listener cho AutoRingtone
+ */
+export function openNotificationListenerSettings(): void {
+  if (Platform.OS !== 'android') return;
+  ExpoRingtone.openNotificationListenerSettings();
 }
 
 /**

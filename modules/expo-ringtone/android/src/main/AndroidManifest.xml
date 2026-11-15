@@ -7,6 +7,7 @@
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
   <!-- Cho phép Android 11-14+ (HyperOS 1/2/3) nhìn thấy package của Zalo, Messenger & các app gọi VoIP
        để grantUriPermission(FLAG_GRANT_READ_URI_PERMISSION) thành công trên Scoped Storage -->
@@ -68,5 +69,27 @@
         <action android:name="android.intent.action.TIMEZONE_CHANGED" />
       </intent-filter>
     </receiver>
+
+    <!-- Bắt sự kiện cuộc gọi đến từ SIM (RINGING) để hẹn giờ đổi nhạc sau 5 phút -->
+    <receiver
+      android:name=".PhoneCallStateReceiver"
+      android:enabled="true"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.PHONE_STATE" />
+      </intent-filter>
+    </receiver>
+
+    <!-- Lắng nghe thông báo cuộc gọi đến từ Zalo, Messenger, Telegram, WhatsApp, Viber & SIM -->
+    <service
+      android:name=".CallDetectNotificationService"
+      android:label="AutoRingtone Call Detector"
+      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+      android:enabled="true"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService" />
+      </intent-filter>
+    </service>
   </application>
 </manifest>

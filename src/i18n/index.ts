@@ -72,6 +72,12 @@ export const translations = {
       schedulerStopped: 'Đã tắt',
       activeSlotsCount: (n: number) => ` · ${n} slot active`,
       activeSlotPrefix: 'Slot đang chạy: ',
+      postCallTitle: '📞 Đổi nhạc sau cuộc gọi (2 phút)',
+      postCallDesc:
+        'Bắt sự kiện cuộc gọi SIM, Zalo, Messenger, Telegram → sau 2 phút tự đổi bài; nếu không có cuộc gọi sẽ theo chu kỳ khung giờ',
+      postCallPendingBadge: (source: string, timeStr: string) =>
+        `⏳ Phát hiện cuộc gọi (${source || 'Call'}) · Sẽ đổi nhạc lúc ${timeStr}`,
+      postCallNeedPermBtn: '⚠️ Cấp quyền nhận diện cuộc gọi SIM / Zalo / Messenger / Telegram ›',
       currentRingtoneHeader: 'Nhạc chuông hiện tại',
       testRandomBtn: '🎲 Test Random',
       audioFileSub: 'File âm thanh',
@@ -214,6 +220,14 @@ export const translations = {
       exactAlarmDesc: 'Giúp đổi nhạc chuông chuẩn từng phút ngay cả khi tắt màn hình',
       exactAlarmDetail:
         'Cho phép AlarmManager đánh thức bộ đổi nhạc đúng giờ bắt đầu khung giờ mà không phụ thuộc mạng hay bị trễ.',
+      callListenerTitle: 'Nhận diện cuộc gọi Zalo / Messenger / Telegram',
+      callListenerDesc: 'Bắt sự kiện có cuộc gọi đến từ ứng dụng & SIM để đổi nhạc sau 2 phút',
+      callListenerDetail:
+        'Cho phép AutoRingtone nhận biết khi có cuộc gọi đến từ Zalo, Messenger, Telegram, WhatsApp, Viber hoặc SIM để hẹn giờ đổi nhạc chuông sau 2 phút. (Lưu ý trên Android 13/14: nếu mục này bị mờ khi bật, hãy vào Thông tin ứng dụng AutoRingtone → chọn "Cho phép cài đặt bị hạn chế" rồi quay lại bật).',
+      phoneStateTitle: 'Nhận diện cuộc gọi SIM (Phone State)',
+      phoneStateDesc: 'Bắt trạng thái đổ chuông cuộc gọi SIM truyền thống',
+      phoneStateDetail:
+        'Giúp ứng dụng bắt sự kiện khi có cuộc gọi SIM đến (RINGING) để tự động hẹn giờ đổi nhạc chuông ngẫu nhiên sau 2 phút.',
       batteryTitle: 'Tắt tối ưu pin (Battery)',
       batteryDesc: 'Đặc biệt quan trọng trên MIUI / HyperOS',
       batteryDetail:
@@ -312,6 +326,12 @@ export const translations = {
       schedulerStopped: 'Disabled',
       activeSlotsCount: (n: number) => ` · ${n} active slot${n === 1 ? '' : 's'}`,
       activeSlotPrefix: 'Active slot: ',
+      postCallTitle: '📞 Rotate 2 mins after call',
+      postCallDesc:
+        'Detects SIM, Zalo, Messenger, Telegram incoming calls → rotates ringtone after 2 mins; otherwise follows slot schedule',
+      postCallPendingBadge: (source: string, timeStr: string) =>
+        `⏳ Call detected (${source || 'Call'}) · Rotating at ${timeStr}`,
+      postCallNeedPermBtn: '⚠️ Grant SIM / Zalo / Messenger / Telegram call detection permissions ›',
       currentRingtoneHeader: 'Current Ringtone',
       testRandomBtn: '🎲 Test Random',
       audioFileSub: 'Audio file',
@@ -455,6 +475,14 @@ export const translations = {
       exactAlarmDesc: 'Ensures minute-accurate ringtone changes even when the screen is off',
       exactAlarmDetail:
         'Allows AlarmManager to wake up the ringtone scheduler right at the start of each time slot with zero delay.',
+      callListenerTitle: 'Detect Zalo / Messenger / Telegram calls',
+      callListenerDesc: 'Detects incoming OTT & SIM calls to rotate ringtone after 2 minutes',
+      callListenerDetail:
+        'Allows AutoRingtone to detect incoming call notifications from Zalo, Messenger, Telegram, WhatsApp, Viber, or SIM and schedule a ringtone rotation 2 minutes later. (On Android 13/14, if grayed out, open App Info → enable "Allow restricted settings" first).',
+      phoneStateTitle: 'Detect SIM incoming calls (Phone State)',
+      phoneStateDesc: 'Detects incoming cellular SIM call ringing state',
+      phoneStateDetail:
+        'Allows the app to detect when a cellular SIM call is ringing and automatically schedule a random ringtone change 2 minutes later.',
       batteryTitle: 'Disable battery optimization',
       batteryDesc: 'Critical on Xiaomi MIUI / HyperOS devices',
       batteryDetail:

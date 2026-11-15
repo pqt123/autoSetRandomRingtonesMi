@@ -18,6 +18,8 @@ import { useTranslation } from '../i18n';
 import {
   checkWriteSettingsPermission,
   openWriteSettingsScreen,
+  checkNotificationListenerPermission,
+  openNotificationListenerSettings,
   isIgnoringBatteryOptimizations,
   openBatteryOptimizationSettings,
   canScheduleExactAlarms,
@@ -67,11 +69,32 @@ async function requestAudioReadPermission(): Promise<boolean> {
   return false;
 }
 
+async function checkPhoneStatePermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const perm = PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE;
+  if (!perm) return true;
+  return PermissionsAndroid.check(perm);
+}
+
+async function requestPhoneStatePermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const perm = PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE;
+  if (!perm) return true;
+  const status = await PermissionsAndroid.request(perm);
+  if (status === PermissionsAndroid.RESULTS.GRANTED) return true;
+  if (status === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+    Linking.openSettings();
+  }
+  return false;
+}
+
 export default function PermissionsScreen() {
   const { t } = useTranslation();
   const [writeSettings, setWriteSettings] = useState<boolean | null>(null);
   const [audioRead, setAudioRead] = useState<boolean | null>(null);
   const [exactAlarm, setExactAlarm] = useState<boolean | null>(null);
+  const [callListener, setCallListener] = useState<boolean | null>(null);
+  const [phoneState, setPhoneState] = useState<boolean | null>(null);
   const [batteryExempt, setBatteryExempt] = useState<boolean | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<DeviceSystemInfo | null>(null);
 
@@ -88,15 +111,19 @@ export default function PermissionsScreen() {
   }, []);
 
   const checkAll = async () => {
-    const [ws, ar, ea, be] = await Promise.all([
+    const [ws, ar, ea, cl, ps, be] = await Promise.all([
       checkWriteSettingsPermission().catch(() => false),
       checkAudioReadPermission().catch(() => false),
       canScheduleExactAlarms().catch(() => true),
+      checkNotificationListenerPermission().catch(() => false),
+      checkPhoneStatePermission().catch(() => false),
       isIgnoringBatteryOptimizations().catch(() => false),
     ]);
     setWriteSettings(ws);
     setAudioRead(ar);
     setExactAlarm(ea);
+    setCallListener(cl);
+    setPhoneState(ps);
     setBatteryExempt(be);
   };
 
@@ -112,6 +139,33 @@ export default function PermissionsScreen() {
       onCheck: checkWriteSettingsPermission,
       onRequest: () => {
         openWriteSettingsScreen();
+      },
+    },
+    {
+      id: 'call_listener',
+      title: t.permissions.callListenerTitle,
+      description: t.permissions.callListenerDesc,
+      detail: t.permissions.callListenerDetail,
+      icon: '📲',
+      required: false,
+      granted: callListener,
+      onCheck: checkNotificationListenerPermission,
+      onRequest: () => {
+        openNotificationListenerSettings();
+      },
+    },
+    {
+      id: 'phone_state',
+      title: t.permissions.phoneStateTitle,
+      description: t.permissions.phoneStateDesc,
+      detail: t.permissions.phoneStateDetail,
+      icon: '📞',
+      required: false,
+      granted: phoneState,
+      onCheck: checkPhoneStatePermission,
+      onRequest: async () => {
+        const granted = await requestPhoneStatePermission();
+        setPhoneState(granted);
       },
     },
     {

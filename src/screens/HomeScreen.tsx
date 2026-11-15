@@ -26,9 +26,13 @@ import { useStore } from '../store/useStore';
 import { useTranslation } from '../i18n';
 import {
   checkWriteSettingsPermission,
+  checkNotificationListenerPermission,
   getCurrentRingtone,
+  getPostCallRotateConfig,
+  setPostCallRotateConfig,
   isIgnoringBatteryOptimizations,
   setSystemRingtone,
+  PostCallRotateStatus,
 } from '../../modules/expo-ringtone';
 import {
   isTimeInSlot,
@@ -38,6 +42,11 @@ import { TimeSlot } from '../types';
 
 function formatTime(h: number, m: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function formatTimestampHHMM(ms: number): string {
+  const d = new Date(ms);
+  return formatTime(d.getHours(), d.getMinutes());
 }
 
 function getActiveSlot(slots: TimeSlot[]): TimeSlot | null {
@@ -50,6 +59,8 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [hasBatteryExemption, setHasBatteryExemption] = useState<boolean | null>(null);
+  const [hasCallListenerPerm, setHasCallListenerPerm] = useState<boolean | null>(null);
+  const [postCallConfig, setPostCallConfig] = useState<PostCallRotateStatus | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const activeSlot = getActiveSlot(slots);
@@ -79,13 +90,17 @@ export default function HomeScreen() {
   }, [schedulerEnabled, slots.length]);
 
   const checkStatus = async () => {
-    const [perm, battery, ringtone] = await Promise.all([
+    const [perm, battery, ringtone, callListener, postCall] = await Promise.all([
       checkWriteSettingsPermission().catch(() => false),
       isIgnoringBatteryOptimizations().catch(() => false),
       getCurrentRingtone().catch(() => null),
+      checkNotificationListenerPermission().catch(() => false),
+      getPostCallRotateConfig().catch(() => null),
     ]);
     setHasPermission(perm);
     setHasBatteryExemption(battery);
+    setHasCallListenerPerm(callListener);
+    if (postCall) setPostCallConfig(postCall);
     if (ringtone) setCurrentRingtone(ringtone);
   };
 
@@ -98,6 +113,15 @@ export default function HomeScreen() {
   const handleToggleScheduler = async () => {
     await toggleScheduler();
     await checkStatus();
+  };
+
+  const handleTogglePostCallRotate = async () => {
+    const currentEnabled = postCallConfig?.enabled ?? true;
+    const delayMinutes = postCallConfig?.delayMinutes ?? 2;
+    const updated = await setPostCallRotateConfig(!currentEnabled, delayMinutes).catch(() => null);
+    if (updated) {
+      setPostCallConfig(updated);
+    }
   };
 
   const handleTestRandomRingtone = async () => {
@@ -174,6 +198,13 @@ export default function HomeScreen() {
     currentRingtone?.title === 'Nhạc chuông hệ thống'
       ? t.home.systemRingtoneDefault
       : (currentRingtone?.title ?? t.common.unknown);
+
+  const postCallEnabled = postCallConfig?.enabled ?? true;
+  const hasPendingPostCall =
+    schedulerEnabled &&
+    postCallEnabled &&
+    !!postCallConfig?.pendingRotateAtMs &&
+    postCallConfig.pendingRotateAtMs > Date.now();
 
   return (
     <View style={styles.container}>
@@ -260,6 +291,45 @@ export default function HomeScreen() {
               </Text>
             </View>
           )}
+
+          {/* ── Post-Call 5-Minute Rotation Option ── */}
+          <View style={styles.postCallSection}>
+            <View style={styles.postCallHeaderRow}>
+              <View style={{ flex: 1, paddingRight: Spacing.sm }}>
+                <Text style={[Typography.body, { fontWeight: '600', fontSize: 14.5 }]}>
+                  {t.home.postCallTitle}
+                </Text>
+                <Text style={[Typography.caption, { marginTop: 3, lineHeight: 16 }]}>
+                  {t.home.postCallDesc}
+                </Text>
+              </View>
+              <ToggleSwitch
+                value={postCallEnabled}
+                onToggle={handleTogglePostCallRotate}
+                activeColor={Colors.accentGreen}
+              />
+            </View>
+
+            {hasPendingPostCall && postCallConfig && (
+              <View style={styles.pendingCallBadge}>
+                <Text style={styles.pendingCallText}>
+                  {t.home.postCallPendingBadge(
+                    postCallConfig.lastCallSource,
+                    formatTimestampHHMM(postCallConfig.pendingRotateAtMs)
+                  )}
+                </Text>
+              </View>
+            )}
+
+            {postCallEnabled && hasCallListenerPerm === false && (
+              <TouchableOpacity
+                onPress={() => router.push('/permissions')}
+                style={styles.callPermHintBtn}
+              >
+                <Text style={styles.callPermHintText}>{t.home.postCallNeedPermBtn}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </GlassCard>
 
         {/* ── Current Ringtone ── */}
@@ -452,6 +522,45 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginRight: Spacing.xs,
+  },
+  postCallSection: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  postCallHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pendingCallBadge: {
+    marginTop: Spacing.sm,
+    backgroundColor: 'rgba(67,198,172,0.14)',
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(67,198,172,0.35)',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+  },
+  pendingCallText: {
+    color: Colors.accentGreen,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  callPermHintBtn: {
+    marginTop: Spacing.sm,
+    backgroundColor: 'rgba(247,151,30,0.12)',
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(247,151,30,0.3)',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+  },
+  callPermHintText: {
+    color: Colors.accentOrange,
+    fontSize: 12,
+    fontWeight: '600',
   },
   ringtoneCard: { marginBottom: Spacing.md },
   ringtoneInfo: {

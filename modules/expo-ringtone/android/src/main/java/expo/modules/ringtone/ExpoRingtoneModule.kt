@@ -112,6 +112,41 @@ class ExpoRingtoneModule : Module() {
       RingtoneAlarmScheduler.getLastSet(context)?.toMap()
     }
 
+    // ─── Cấu hình đổi nhạc chuông sau 5 phút kể từ khi có cuộc gọi đến ──────────
+    AsyncFunction("getPostCallRotateConfig") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction null
+      RingtoneAlarmScheduler.getPostCallConfigMap(context)
+    }
+
+    AsyncFunction("setPostCallRotateConfig") { enabled: Boolean, delayMinutes: Int ->
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction null
+      RingtoneAlarmScheduler.setPostCallConfig(context, enabled, delayMinutes)
+    }
+
+    // ─── Kiểm tra & mở quyền NotificationListener (nhận diện cuộc gọi Zalo/Messenger/Telegram) ─
+    AsyncFunction("checkNotificationListenerPermission") {
+      if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
+      isNotificationListenerEnabled(context)
+    }
+
+    Function("openNotificationListenerSettings") {
+      if (DeviceSecurity.isAuthorized(context)) {
+        val cn = ComponentName(context.packageName, CallDetectNotificationService::class.java.name)
+        val detailIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).apply {
+            putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, cn.flattenToString())
+          }
+        } else {
+          Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        }
+        startActivityWithFallbacks(
+          detailIntent,
+          Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
+          appDetailsIntent()
+        )
+      }
+    }
+
     // ─── Kiểm tra quyền WRITE_SETTINGS ──────────────────────────────────────────
     AsyncFunction("checkWriteSettingsPermission") {
       if (!DeviceSecurity.isAuthorized(context)) return@AsyncFunction false
@@ -247,6 +282,20 @@ class ExpoRingtoneModule : Module() {
           appDetailsIntent()
         )
       }
+    }
+  }
+
+  private fun isNotificationListenerEnabled(ctx: Context): Boolean {
+    return try {
+      val flat = Settings.Secure.getString(ctx.contentResolver, "enabled_notification_listeners")
+      if (flat.isNullOrBlank()) return false
+      val myPkg = ctx.packageName
+      flat.split(":").any { entry ->
+        val cn = ComponentName.unflattenFromString(entry)
+        cn?.packageName == myPkg
+      }
+    } catch (_: Throwable) {
+      false
     }
   }
 
